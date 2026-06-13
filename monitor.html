@@ -910,6 +910,8 @@ async function solveIndependent(u, frame) {
   st.solving = false;
   renderQuiz(u);
 }
+
+function parseQuizJSON(s) {
   try {
     let t = String(s).trim().replace(/^```json/i,'').replace(/^```/,'').replace(/```$/,'').trim();
     const a=t.indexOf('{'), b=t.lastIndexOf('}');

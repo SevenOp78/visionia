@@ -606,14 +606,23 @@ function connectSrv() {
         setSrvDot('on','Servidor conectado');
         document.getElementById('camLinks').style.display='flex';
         startSSE(1); startSSE(2);
+      } else {
+        setSrvDot('err','Error al conectar');
+        setTimeout(connectSrv, 3000); // reintenta en 3s
       }
     })
-    .catch(()=>setSrvDot('err','Sin conexión — ¿está corriendo node server.js?'));
+    .catch(()=>{
+      setSrvDot('err','Sin conexión...');
+      setTimeout(connectSrv, 3000); // reintenta en 3s
+    });
 }
 
 function setSrvDot(state, txt) {
-  document.getElementById('srvDot').className='pd'+(state==='on'?' on':state==='err'?' wait':'');
-  document.getElementById('srvTxt').textContent=txt;
+  // srvDot y srvTxt son opcionales (pueden no estar en la UI)
+  const dot = document.getElementById('srvDot');
+  const txtEl = document.getElementById('srvTxt');
+  if(dot) dot.className='pd'+(state==='on'?' on':state==='err'?' wait':'');
+  if(txtEl) txtEl.textContent=txt;
   document.getElementById('srd').className='srd'+(state==='on'?' ok':state==='err'?' err':'');
   document.getElementById('srt').textContent=txt;
 }

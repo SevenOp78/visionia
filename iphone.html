@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <title>VisionIA — Cámara</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    :root{
+      --bg:#0e0e10;--s:#17171a;--s2:#1f1f24;
+      --bd:rgba(255,255,255,.08);--bdh:rgba(255,255,255,.18);
+      --tx:#f0eff2;--mu:#8b8a95;--fa:#55545e;
+      --ac:#7c6af7;--acl:rgba(124,106,247,.15);
+      --gn:#3ecf8e;--rd:#f66;--or:#f5a623;
+      --r:14px;--rs:10px;
+    }
+    html,body{height:100%;background:var(--bg);color:var(--tx);font-family:-apple-system,'Inter',sans-serif;overflow:hidden}
+
+    /* ── LAYOUT ── */
+    .app{display:flex;flex-direction:column;height:100%;height:100dvh}
+
+    /* ── HEADER ── */
+    header{
+      padding:env(safe-area-inset-top,12px) 16px 12px;
+      background:rgba(14,14,16,.92);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+      border-bottom:1px solid var(--bd);
+      display:flex;align-items:center;justify-content:space-between;
+      flex-shrink:0;
+    }
+    .logo{font-size:1.05rem;font-weight:600;letter-spacing:-.01em}
+    .logo b{color:var(--ac)}
+    .status-pill{
+      display:flex;align-items:center;gap:6px;
+      font-size:11px;color:var(--mu);
+      background:var(--s);border:1px solid var(--bd);
+      border-radius:20px;padding:4px 11px;
+    }
+    .dot{width:7px;height:7px;border-radius:50%;background:var(--fa);flex-shrink:0;transition:background .3s}
+    .dot.on{background:var(--gn);box-shadow:0 0 6px var(--gn)}
+    .dot.err{background:var(--rd);box-shadow:0 0 6px var(--rd)}
+    .dot.wait{background:var(--or);animation:pulse 1.2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+    /* ── VIEWFINDER ── */
+    .viewfinder-wrap{
+      flex:1;position:relative;overflow:hidden;background:#000;
+      display:flex;align-items:center;justify-content:center;
+    }
+    video{
+      width:100%;height:100%;object-fit:cover;
+      transform:scaleX(-1); /* mirror selfie cam */
+    }
+    video.rear{transform:none}
+    canvas#snap{display:none}
+
+    /* Overlay: captura activa */
+    .overlay{
+      position:absolute;inset:0;pointer-events:none;
+      display:flex;flex-direction:column;justify-content:space-between;
+      padding:14px;
+    }
+    .overlay-top{display:flex;justify-content:space-between;align-items:flex-start}
+    .overlay-bot{display:flex;justify-content:center}
+
+    /* Badges flotantes */
+    .badge{
+      background:rgba(0,0,0,.65);backdrop-filter:blur(8px);
+      border:1px solid rgba(255,255,255,.12);border-radius:20px;
+      padding:4px 12px;font-size:11px;color:#fff;display:flex;align-items:center;gap:5px;
+    }
+    .badge.rec .recdot{width:6px;height:6px;border-radius:50%;background:var(--rd);animation:pulse 1s infinite;display:inline-block}
+    .fps-num{font-weight:600;color:var(--gn)}
+    .size-num{color:var(--mu)}
+
+    /* Placeholder (sin cámara) */
+    .placeholder{
+      position:absolute;inset:0;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:10px;
+      background:var(--s);color:var(--fa);text-align:center;padding:2rem;
+    }
+    .placeholder .ico{font-size:48px}
+    .placeholder p{font-size:14px;line-height:1.6}
+
+    /* Thumbnail de última enviada */
+    .thumb-wrap{
+      position:absolute;bottom:16px;right:16px;
+      width:60px;height:45px;border-radius:8px;overflow:hidden;
+      border:2px solid rgba(255,255,255,.2);opacity:.85;
+    }
+    .thumb-wrap img{width:100%;height:100%;object-fit:cover}
+
+    /* Flash de captura */
+    .flash{
+      position:absolute;inset:0;background:#fff;opacity:0;
+      pointer-events:none;transition:opacity .05s;border-radius:0;
+    }
+    .flash.go{opacity:.35}
+
+    /* ── CONTROLS ── */
+    .controls{
+      flex-shrink:0;
+      background:rgba(14,14,16,.96);
+      backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+      border-top:1px solid var(--bd);
+      padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));
+    }
+
+    /* Fila principal: botón + info */
+    .ctrl-main{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+    .btn-shoot{
+      width:68px;height:68px;border-radius:50%;
+      background:var(--ac);border:3px solid rgba(124,106,247,.5);
+      box-shadow:0 0 0 4px var(--acl);
+      display:flex;align-items:center;justify-content:center;
+      font-size:26px;cursor:pointer;flex-shrink:0;
+      transition:transform .08s,box-shadow .08s;
+      -webkit-user-select:none;user-select:none;
+    }
+    .btn-shoot:active{transform:scale(.93);box-shadow:0 0 0 2px var(--acl)}
+    .btn-shoot.sending{background:var(--or)}
+    .btn-shoot.error{background:var(--rd)}
+
+    .info-col{flex:1;min-width:0}
+    .info-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+    .mode-label{font-size:12px;font-weight:600;color:var(--tx)}
+    .user-tag{font-size:11px;color:var(--ac);background:var(--acl);border:1px solid rgba(124,106,247,.3);padding:2px 9px;border-radius:20px}
+
+    .stats-row{display:flex;gap:10px}
+    .stat{text-align:center}
+    .stat-v{font-size:16px;font-weight:600;color:var(--tx)}
+    .stat-l{font-size:9px;color:var(--fa);text-transform:uppercase;letter-spacing:.06em}
+
+    /* ── SLIDER DE INTERVALO ── */
+    .interval-row{
+      display:flex;align-items:center;gap:10px;
+      background:var(--s);border:1px solid var(--bd);
+      border-radius:var(--rs);padding:10px 13px;margin-bottom:10px;
+    }
+    .int-label{font-size:11px;color:var(--mu);white-space:nowrap}
+    input[type=range]{
+      flex:1;-webkit-appearance:none;appearance:none;
+      height:3px;background:var(--s2);border-radius:2px;outline:none;
+    }
+    input[type=range]::-webkit-slider-thumb{
+      -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+      background:var(--ac);border:2px solid rgba(124,106,247,.5);
+      cursor:pointer;margin-top:-8.5px;
+    }
+    .int-val{font-size:12px;font-weight:600;color:var(--ac);min-width:38px;text-align:right}
+
+    /* ── OPCIONES ── */
+    .opts-row{display:flex;gap:7px}
+    .opt-btn{
+      flex:1;padding:8px 6px;border-radius:var(--rs);
+      border:1px solid var(--bd);background:var(--s);
+      color:var(--mu);font-size:11px;font-family:inherit;cursor:pointer;
+      display:flex;flex-direction:column;align-items:center;gap:3px;
+      transition:all .15s;-webkit-user-select:none;user-select:none;
+    }
+    .opt-btn:active{opacity:.7}
+    .opt-btn.active{background:var(--acl);border-color:rgba(124,106,247,.4);color:var(--ac)}
+    .opt-btn .ico{font-size:17px}
+    .opt-btn .lbl{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+
+    /* ── SERVER CONFIG (colapsable) ── */
+    .cfg-toggle{
+      width:100%;text-align:center;background:none;border:none;
+      color:var(--fa);font-size:11px;font-family:inherit;cursor:pointer;
+      padding:6px 0 2px;display:flex;align-items:center;justify-content:center;gap:5px;
+    }
+    .cfg-panel{
+      display:none;margin-top:10px;
+      background:var(--s);border:1px solid var(--bd);border-radius:var(--rs);
+      padding:12px;display:flex;flex-direction:column;gap:8px;
+    }
+    .cfg-panel.open{display:flex}
+    .cfg-field{display:flex;flex-direction:column;gap:3px}
+    .cfg-field label{font-size:10px;color:var(--fa);text-transform:uppercase;letter-spacing:.06em}
+    .cfg-field input,.cfg-field select{
+      background:var(--s2);border:1px solid var(--bd);border-radius:8px;
+      padding:8px 10px;font-size:12px;font-family:monospace;color:var(--tx);
+      outline:none;width:100%;
+    }
+    .cfg-field input:focus,.cfg-field select:focus{border-color:var(--bdh)}
+    .cfg-btns{display:flex;gap:7px}
+    .cfg-btn{
+      flex:1;padding:8px;border-radius:var(--rs);
+      border:1px solid rgba(124,106,247,.35);background:var(--acl);
+      color:var(--ac);font-size:12px;font-family:inherit;cursor:pointer;
+      transition:background .15s;
+    }
+    .cfg-btn:active{background:rgba(124,106,247,.25)}
+    .cfg-btn.sec{border-color:var(--bd);background:var(--s2);color:var(--mu)}
+
+    /* ── TOAST ── */
+    .toast{
+      position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));
+      left:50%;transform:translateX(-50%) translateY(80px);
+      background:rgba(30,30,35,.95);backdrop-filter:blur(12px);
+      border:1px solid var(--bd);border-radius:20px;
+      padding:9px 18px;font-size:12px;color:var(--tx);
+      white-space:nowrap;transition:transform .25s cubic-bezier(.34,1.56,.64,1);
+      z-index:999;pointer-events:none;
+    }
+    .toast.show{transform:translateX(-50%) translateY(0)}
+
+    /* Auto-mode highlight */
+    .btn-shoot.auto{
+      background:var(--gn);border-color:rgba(62,207,142,.4);
+      animation:breathe 2s infinite;
+    }
+    @keyframes breathe{0%,100%{box-shadow:0 0 0 4px rgba(62,207,142,.15)}50%{box-shadow:0 0 0 8px rgba(62,207,142,.05)}}
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── HEADER ── -->
+  <header>
+    <div class="logo">Vision<b>IA</b></div>
+    <div class="status-pill">
+      <span class="dot" id="connDot"></span>
+      <span id="connTxt">Desconectado</span>
+    </div>
+  </header>
+
+  <!-- ── VIEWFINDER ── -->
+  <div class="viewfinder-wrap" id="vfWrap">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="snap"></canvas>
+
+    <div class="placeholder" id="placeholder">
+      <div class="ico">📷</div>
+      <p>Toca <strong>Iniciar cámara</strong><br>para comenzar a capturar</p>
+    </div>
+
+    <div class="overlay" id="overlay" style="display:none">
+      <div class="overlay-top">
+        <div class="badge rec" id="recBadge" style="display:none">
+          <span class="recdot"></span><span id="recLabel">AUTO</span>
+        </div>
+        <div class="badge" id="fpsBadge">
+          <span class="fps-num" id="fpsVal">—</span>
+          <span style="color:var(--fa)">fps</span>
+          &nbsp;
+          <span class="size-num" id="sizeVal">—</span>
+        </div>
+      </div>
+      <div class="overlay-bot"></div>
+    </div>
+
+    <div class="thumb-wrap" id="thumbWrap" style="display:none">
+      <img id="thumbImg" alt="última"/>
+    </div>
+
+    <div class="flash" id="flash"></div>
+  </div>
+
+  <!-- ── CONTROLS ── -->
+  <div class="controls">
+
+    <!-- Intervalo -->
+    <div class="interval-row">
+      <span class="int-label">⏱ Intervalo</span>
+      <input type="range" id="intervalSlider" min="200" max="5000" step="100" value="1000"
+             oninput="onIntervalChange(this.value)"/>
+      <span class="int-val" id="intervalVal">1.0 s</span>
+    </div>
+
+    <!-- Main row -->
+    <div class="ctrl-main">
+      <button class="btn-shoot" id="btnShoot" onclick="onShoot()">📷</button>
+      <div class="info-col">
+        <div class="info-row">
+          <span class="mode-label" id="modeLabel">Manual</span>
+          <span class="user-tag" id="userTag">U1</span>
+        </div>
+        <div class="stats-row">
+          <div class="stat"><div class="stat-v" id="stSent">0</div><div class="stat-l">Enviadas</div></div>
+          <div class="stat"><div class="stat-v" id="stOk">0</div><div class="stat-l">OK</div></div>
+          <div class="stat"><div class="stat-v" id="stErr">0</div><div class="stat-l">Err</div></div>
+          <div class="stat"><div class="stat-v" id="stKb">—</div><div class="stat-l">KB</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Opciones -->
+    <div class="opts-row">
+      <button class="opt-btn" id="optCam" onclick="toggleCamera()">
+        <span class="ico">🔄</span><span class="lbl">Cámara</span>
+      </button>
+      <button class="opt-btn" id="optAuto" onclick="toggleAuto()">
+        <span class="ico" id="autoIco">▶️</span><span class="lbl">Auto</span>
+      </button>
+      <button class="opt-btn" id="optQ" onclick="cycleQuality()">
+        <span class="ico">🎯</span><span class="lbl" id="qLabel">Alta</span>
+      </button>
+      <button class="opt-btn" id="optUser" onclick="cycleUser()">
+        <span class="ico">👤</span><span class="lbl" id="uLabel">U1</span>
+      </button>
+    </div>
+
+    <!-- Configuración server -->
+    <button class="cfg-toggle" onclick="toggleCfg()">
+      <span id="cfgArr">▸</span> Servidor &amp; conexión
+    </button>
+    <div class="cfg-panel" id="cfgPanel">
+      <div class="cfg-field">
+        <label>URL del servidor (WSS o HTTPS)</label>
+        <input id="srvUrl" type="url" placeholder="https://tuservidor.com" value=""/>
+      </div>
+      <div class="cfg-field">
+        <label>Protocolo</label>
+        <select id="protoSel">
+          <option value="ws">WebSocket (más rápido)</option>
+          <option value="http">HTTP POST (compatible)</option>
+        </select>
+      </div>
+      <div class="cfg-btns">
+        <button class="cfg-btn" onclick="connect()">⚡ Conectar</button>
+        <button class="cfg-btn sec" onclick="initCamera()">📷 Cámara</button>
+      </div>
+      <div style="font-size:10px;color:var(--fa);line-height:1.6">
+        Para acceso desde internet sin misma red WiFi:<br>
+        <code style="color:var(--ac)">npx localtunnel --port 3000</code> o<br>
+        <code style="color:var(--ac)">cloudflared tunnel --url http://localhost:3000</code>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  ESTADO
+// ═══════════════════════════════════════════════════
+const S = {
+  cameraReady: false,
+  facingFront: true,
+  stream: null,
+  ws: null,
+  wsReady: false,
+  autoMode: false,
+  autoTimer: null,
+  interval: 1000,        // ms entre capturas auto
+  quality: 0.82,         // JPEG quality inicial
+  qualityLabel: 'Alta',
+  user: 1,               // 1 o 2
+  protocol: 'ws',        // 'ws' o 'http'
+  srvUrl: '',
+  sent: 0, ok: 0, err: 0,
+  lastSendTime: 0,
+  fpsTimes: [],
+  deviceName: navigator.userAgent.includes('iPhone') ? 'iPhone' : 'iOS',
+  pendingSend: false,
+  // Compresión adaptativa
+  lastKB: 0,
+  targetMaxKB: 150,      // no enviar más de 150 KB por frame
+};
+
+const QUALITY_LEVELS = [
+  { label:'Ultra', q:0.95, maxW:1920 },
+  { label:'Alta',  q:0.82, maxW:1280 },
+  { label:'Media', q:0.65, maxW:960  },
+  { label:'Rápida',q:0.45, maxW:720  },
+];
+let qualIdx = 1; // Alta por default
+
+// ═══════════════════════════════════════════════════
+//  CAMERA
+// ═══════════════════════════════════════════════════
+async function initCamera() {
+  try {
+    if(S.stream) S.stream.getTracks().forEach(t=>t.stop());
+    const constraints = {
+      video: {
+        facingMode: S.facingFront ? 'user' : 'environment',
+        width:  { ideal: QUALITY_LEVELS[qualIdx].maxW },
+        height: { ideal: Math.round(QUALITY_LEVELS[qualIdx].maxW * 0.75) },
+        frameRate: { ideal: 30 },
+      },
+      audio: false,
+    };
+    S.stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const video = document.getElementById('video');
+    video.srcObject = S.stream;
+    video.className = S.facingFront ? '' : 'rear';
+    await video.play();
+    S.cameraReady = true;
+    document.getElementById('placeholder').style.display = 'none';
+    document.getElementById('overlay').style.display = 'block';
+    toast('📷 Cámara lista');
+  } catch(e) {
+    toast('❌ Error cámara: ' + e.message);
+  }
+}
+
+function toggleCamera() {
+  S.facingFront = !S.facingFront;
+  if(S.cameraReady) initCamera();
+}
+
+// ═══════════════════════════════════════════════════
+//  CAPTURE (Canvas → JPEG comprimido)
+// ═══════════════════════════════════════════════════
+function capture() {
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('snap');
+  if(!S.cameraReady || video.readyState < 2) return null;
+
+  const maxW = QUALITY_LEVELS[qualIdx].maxW;
+  const vw = video.videoWidth || 1280;
+  const vh = video.videoHeight || 720;
+  const scale = Math.min(1, maxW / vw);
+  canvas.width  = Math.round(vw * scale);
+  canvas.height = Math.round(vh * scale);
+
+  const ctx = canvas.getContext('2d');
+  // Voltear horizontalmente si es cámara frontal
+  if(S.facingFront) {
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+  }
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  if(S.facingFront) ctx.setTransform(1,0,0,1,0,0);
+
+  // Compresión adaptativa: si el último frame fue muy pesado, bajar calidad
+  let q = QUALITY_LEVELS[qualIdx].q;
+  if(S.lastKB > S.targetMaxKB) {
+    q = Math.max(0.3, q * (S.targetMaxKB / S.lastKB));
+  }
+
+  const dataUrl = canvas.toDataURL('image/jpeg', q);
+  const b64 = dataUrl.split(',')[1];
+  const bytes = Math.round(b64.length * 0.75);
+  const kb = Math.round(bytes / 1024);
+  S.lastKB = kb;
+
+  return { dataUrl, b64, kb, mime: 'image/jpeg', q };
+}
+
+// ═══════════════════════════════════════════════════
+//  WEBSOCKET
+// ═══════════════════════════════════════════════════
+function buildWsUrl(base) {
+  // https://x.com → wss://x.com/ws
+  // http://x.com  → ws://x.com/ws
+  const u = base.replace(/\/$/, '');
+  if(u.startsWith('wss://') || u.startsWith('ws://')) return u + '/ws';
+  return u.replace(/^https?:\/\//, m => m === 'https://' ? 'wss://' : 'ws://') + '/ws';
+}
+
+function connect() {
+  S.srvUrl  = document.getElementById('srvUrl').value.trim().replace(/\/$/, '');
+  S.protocol = document.getElementById('protoSel').value;
+
+  if(S.protocol === 'ws') connectWS();
+  else { setDot('on', 'HTTP listo'); }
+
+  // Iniciar cámara si no está
+  if(!S.cameraReady) initCamera();
+}
+
+function connectWS() {
+  if(S.ws) { try{S.ws.close()}catch(e){} }
+  setDot('wait', 'Conectando WS…');
+
+  try {
+    const wsUrl = buildWsUrl(S.srvUrl) + '?user=' + S.user;
+    S.ws = new WebSocket(wsUrl);
+    S.ws.binaryType = 'arraybuffer';
+
+    S.ws.onopen = () => {
+      S.wsReady = true;
+      setDot('on', 'WS conectado ⚡');
+      toast('⚡ WebSocket conectado');
+    };
+    S.ws.onclose = () => {
+      S.wsReady = false;
+      setDot('err', 'WS desconectado');
+      // Reconexión automática en 3s
+      setTimeout(() => { if(S.protocol==='ws') connectWS(); }, 3000);
+    };
+    S.ws.onerror = () => {
+      setDot('err', 'Error WS');
+    };
+    S.ws.onmessage = (e) => {
+      // Servidor puede enviar ACK
+      try { const d=JSON.parse(e.data); if(d.ok) S.ok++; updStats(); } catch(ex){}
+    };
+  } catch(e) {
+    setDot('err', 'URL inválida');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  SEND
+// ═══════════════════════════════════════════════════
+async function sendFrame() {
+  if(!S.cameraReady) { toast('Inicia la cámara primero'); return; }
+  if(S.pendingSend) return; // evitar flood
+  S.pendingSend = true;
+
+  const cap = capture();
+  if(!cap) { S.pendingSend = false; return; }
+
+  // Flash visual
+  doFlash();
+  // Thumbnail
+  document.getElementById('thumbImg').src = cap.dataUrl;
+  document.getElementById('thumbWrap').style.display = 'block';
+
+  S.sent++;
+  document.getElementById('sizeVal').textContent = cap.kb + 'KB';
+  document.getElementById('stKb').textContent = cap.kb;
+  document.getElementById('stSent').textContent = S.sent;
+
+  // FPS
+  const now = Date.now();
+  S.fpsTimes.push(now);
+  S.fpsTimes = S.fpsTimes.filter(t => now - t < 2000);
+  const fps = S.fpsTimes.length > 1
+    ? Math.round((S.fpsTimes.length - 1) / ((now - S.fpsTimes[0]) / 1000) * 10) / 10
+    : 0;
+  document.getElementById('fpsVal').textContent = fps.toFixed(1);
+
+  try {
+    if(S.protocol === 'ws' && S.wsReady) {
+      await sendWS(cap);
+    } else {
+      await sendHTTP(cap);
+    }
+    S.ok++;
+  } catch(e) {
+    S.err++;
+    document.getElementById('connDot').className = 'dot err';
+  } finally {
+    S.pendingSend = false;
+    updStats();
+  }
+}
+
+async function sendWS(cap) {
+  // Protocolo binario: JSON header + \n + base64 data
+  // Alternativa ultrarrápida: enviar raw como texto JSON
+  const payload = JSON.stringify({
+    user: S.user,
+    ts: Date.now(),
+    mime: cap.mime,
+    sizeKB: cap.kb,
+    deviceName: S.deviceName,
+    data: cap.b64,          // base64 string
+  });
+  S.ws.send(payload);
+  // ACK llega por onmessage
+}
+
+async function sendHTTP(cap) {
+  // FormData es más lento → usamos JSON con base64
+  // Pero si la imagen es grande, usamos FormData (mejor para binarios grandes)
+  const url = (S.srvUrl || 'http://localhost:3000') + '/upload/' + S.user;
+
+  if(cap.kb > 80) {
+    // FormData + Blob: más eficiente para imágenes grandes
+    const blob = await dataUrlToBlob(cap.dataUrl);
+    const fd = new FormData();
+    fd.append('image', blob, 'frame.jpg');
+    fd.append('ts', Date.now());
+    fd.append('deviceName', S.deviceName);
+    fd.append('sizeKB', cap.kb);
+
+    const r = await fetch(url, {
+      method: 'POST',
+      body: fd,
+      // No establecer Content-Type, el browser lo hace con boundary
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+  } else {
+    // JSON para imágenes pequeñas (menos overhead)
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ts: Date.now(),
+        mime: cap.mime,
+        sizeKB: cap.kb,
+        deviceName: S.deviceName,
+        data: cap.b64,
+      }),
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+  }
+}
+
+function dataUrlToBlob(dataUrl) {
+  return new Promise(res => {
+    const [header, b64] = dataUrl.split(',');
+    const mime = header.match(/:(.*?);/)[1];
+    const binary = atob(b64);
+    const ab = new ArrayBuffer(binary.length);
+    const ia = new Uint8Array(ab);
+    for(let i=0;i<binary.length;i++) ia[i]=binary.charCodeAt(i);
+    res(new Blob([ab], {type:mime}));
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  AUTO MODE
+// ═══════════════════════════════════════════════════
+function toggleAuto() {
+  S.autoMode = !S.autoMode;
+  document.getElementById('optAuto').classList.toggle('active', S.autoMode);
+  document.getElementById('autoIco').textContent = S.autoMode ? '⏹' : '▶️';
+  document.getElementById('recBadge').style.display = S.autoMode ? 'flex' : 'none';
+  document.getElementById('btnShoot').className = 'btn-shoot' + (S.autoMode ? ' auto' : '');
+  document.getElementById('modeLabel').textContent = S.autoMode ? 'Auto' : 'Manual';
+
+  if(S.autoMode) {
+    scheduleAuto();
+  } else {
+    clearTimeout(S.autoTimer);
+    S.autoTimer = null;
+  }
+}
+
+function scheduleAuto() {
+  if(!S.autoMode) return;
+  S.autoTimer = setTimeout(async () => {
+    await sendFrame();
+    scheduleAuto();
+  }, S.interval);
+}
+
+// ═══════════════════════════════════════════════════
+//  UI HANDLERS
+// ═══════════════════════════════════════════════════
+async function onShoot() {
+  if(S.autoMode) { toggleAuto(); return; }
+  if(!S.cameraReady) { await initCamera(); return; }
+  await sendFrame();
+}
+
+function onIntervalChange(val) {
+  S.interval = parseInt(val);
+  const s = (S.interval / 1000).toFixed(1);
+  document.getElementById('intervalVal').textContent = s + ' s';
+  document.getElementById('recLabel').textContent = 'AUTO ' + s + 's';
+  // Reiniciar timer si estamos en auto
+  if(S.autoMode) {
+    clearTimeout(S.autoTimer);
+    scheduleAuto();
+  }
+}
+
+function cycleQuality() {
+  qualIdx = (qualIdx + 1) % QUALITY_LEVELS.length;
+  const ql = QUALITY_LEVELS[qualIdx];
+  document.getElementById('qLabel').textContent = ql.label;
+  toast('🎯 Calidad: ' + ql.label + ' (' + Math.round(ql.q*100) + '%)');
+}
+
+function cycleUser() {
+  S.user = S.user === 1 ? 2 : 1;
+  document.getElementById('uLabel').textContent = 'U' + S.user;
+  document.getElementById('userTag').textContent = 'U' + S.user;
+  // Reconectar WS al usuario correcto
+  if(S.protocol === 'ws' && S.srvUrl) connectWS();
+}
+
+function toggleCfg() {
+  const panel = document.getElementById('cfgPanel');
+  const arr   = document.getElementById('cfgArr');
+  const open  = panel.classList.toggle('open');
+  arr.textContent = open ? '▾' : '▸';
+}
+
+// ═══════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════
+function setDot(state, txt) {
+  const d = document.getElementById('connDot');
+  d.className = 'dot' + (state==='on'?' on':state==='err'?' err':state==='wait'?' wait':'');
+  document.getElementById('connTxt').textContent = txt;
+}
+
+function updStats() {
+  document.getElementById('stOk').textContent  = S.ok;
+  document.getElementById('stErr').textContent = S.err;
+}
+
+function doFlash() {
+  const f = document.getElementById('flash');
+  f.classList.add('go');
+  setTimeout(() => f.classList.remove('go'), 100);
+}
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════════════════════
+//  INIT — Leer URL del QR si viene como ?srv=...
+// ═══════════════════════════════════════════════════
+(function init() {
+  const params = new URLSearchParams(location.search);
+  const srv = params.get('srv');
+  const user = params.get('u');
+  if(srv) {
+    document.getElementById('srvUrl').value = decodeURIComponent(srv);
+    S.srvUrl = decodeURIComponent(srv);
+  }
+  if(user && (user==='1'||user==='2')) {
+    S.user = parseInt(user);
+    document.getElementById('uLabel').textContent = 'U' + S.user;
+    document.getElementById('userTag').textContent = 'U' + S.user;
+  }
+  // Autoconectar si ya hay URL
+  if(S.srvUrl) {
+    setTimeout(() => connect(), 500);
+  } else {
+    // Abrir config automáticamente
+    document.getElementById('cfgPanel').classList.add('open');
+    document.getElementById('cfgArr').textContent = '▾';
+  }
+})();
+
+// Prevent zoom on double tap (iOS)
+let lastTap=0;
+document.addEventListener('touchend', e => {
+  const now=Date.now();
+  if(now-lastTap<300) e.preventDefault();
+  lastTap=now;
+},{passive:false});
+</script>
+</body>
+</html>

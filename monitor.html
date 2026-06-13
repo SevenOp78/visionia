@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VisionIA — Monitor</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e0e10;--s:#17171a;--s2:#1f1f24;
+  --bd:rgba(255,255,255,.07);--bdh:rgba(255,255,255,.15);
+  --tx:#f0eff2;--mu:#8b8a95;--fa:#55545e;
+  --ac:#7c6af7;--acl:rgba(124,106,247,.12);
+  --gn:#3ecf8e;--rd:#f66;--or:#f5a623;
+  --r:12px;--rs:8px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+
+/* ── NAV ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.875rem 1.75rem;
+  background:rgba(14,14,16,.93);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--bd);
+}
+.logo{font-family:'Instrument Serif',serif;font-size:1.2rem;color:var(--tx);text-decoration:none}
+.logo b{color:var(--ac)}
+.nav-r{display:flex;gap:7px;align-items:center}
+.pill{display:flex;align-items:center;gap:5px;font-size:11px;padding:4px 11px;border-radius:20px;border:1px solid var(--bd);background:var(--s);color:var(--mu);white-space:nowrap}
+.pd{width:6px;height:6px;border-radius:50%;background:var(--fa);flex-shrink:0;transition:background .3s}
+.pd.on{background:var(--gn);box-shadow:0 0 5px var(--gn)}
+.pd.wait{background:var(--or);animation:blk 1.4s infinite}
+@keyframes blk{0%,100%{opacity:1}50%{opacity:.3}}
+.cfg-toggle{display:flex;align-items:center;gap:5px;font-size:11px;padding:4px 11px;border-radius:20px;border:1px solid var(--bd);background:var(--s);color:var(--mu);cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s}
+.cfg-toggle:hover{border-color:var(--bdh);color:var(--tx)}
+
+/* ── LAYOUT ── */
+main{padding:5rem 1.5rem 2rem;max-width:1300px;margin:0 auto;display:grid;grid-template-columns:270px 1fr;gap:1.25rem;align-items:start}
+main.no-left{grid-template-columns:1fr}
+main.no-left .left-col{display:none}
+@media(max-width:820px){main{grid-template-columns:1fr}}
+
+/* ── LEFT PANEL ── */
+.left-col{display:flex;flex-direction:column;gap:.875rem}
+.box{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:1.1rem}
+.bt{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--fa);margin-bottom:.75rem}
+
+/* Server */
+.srv-row{display:flex;gap:6px}
+.srv-row input{flex:1;background:var(--s2);border:1px solid var(--bd);border-radius:var(--rs);padding:7px 10px;font-size:12px;font-family:monospace;color:var(--tx);outline:none;min-width:0;transition:border-color .15s}
+.srv-row input:focus{border-color:var(--bdh)}
+.sbtn{padding:7px 13px;background:var(--acl);border:1px solid rgba(124,106,247,.3);border-radius:var(--rs);color:var(--ac);font-size:12px;font-family:'Inter',sans-serif;cursor:pointer;white-space:nowrap;transition:background .15s;flex-shrink:0}
+.sbtn:hover{background:rgba(124,106,247,.2)}
+.sr{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--fa);margin-top:.5rem}
+.srd{width:5px;height:5px;border-radius:50%;background:var(--fa);flex-shrink:0}
+.srd.ok{background:var(--gn)}.srd.err{background:var(--rd)}
+.cam-links{display:flex;gap:6px;margin-top:.75rem;flex-wrap:wrap}
+.cam-btn{font-size:11px;color:var(--mu);background:none;border:1px solid var(--bd);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:'Inter',sans-serif;transition:color .15s}
+.cam-btn:hover{color:var(--tx);border-color:var(--bdh)}
+
+/* User tabs */
+.utabs{display:flex;gap:6px}
+.utab{flex:1;padding:7px;border:1px solid var(--bd);border-radius:var(--rs);background:transparent;color:var(--mu);font-size:12px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px}
+.utab:hover{border-color:var(--bdh);color:var(--tx)}
+.utab.active{background:var(--acl);border-color:rgba(124,106,247,.35);color:var(--ac)}
+.udot{width:6px;height:6px;border-radius:50%;background:var(--fa);flex-shrink:0}
+.udot.on{background:var(--gn);box-shadow:0 0 4px var(--gn)}
+.udot.wait{background:var(--or);animation:blk 1.2s infinite}
+.upanel{display:none}.upanel.active{display:flex;flex-direction:column;gap:.875rem}
+
+/* Fields */
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:.6rem}
+.field label{font-size:11px;color:var(--mu)}
+.field input,.field select,.field textarea{background:var(--s2);border:1px solid var(--bd);border-radius:var(--rs);padding:7px 10px;font-size:12px;font-family:'Inter',sans-serif;color:var(--tx);width:100%;outline:none;transition:border-color .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--bdh)}
+.field input::placeholder{color:var(--fa)}
+select option{background:#1f1f24;color:var(--tx)}
+.field textarea{resize:vertical;min-height:52px;line-height:1.5}
+
+/* Prompt row — se oculta en modo quiz */
+.prompt-row{transition:opacity .2s}
+.prompt-row.hidden{display:none}
+
+/* Quiz toggle */
+.qz-toggle{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--s2);border:1px solid var(--bd);border-radius:var(--rs);
+  padding:8px 11px;cursor:pointer;margin-top:-.1rem;
+}
+.qz-toggle span{font-size:12px;color:var(--mu);display:flex;align-items:center;gap:6px}
+.qz-sw{width:32px;height:18px;border-radius:20px;background:var(--fa);position:relative;transition:background .2s;flex-shrink:0}
+.qz-sw::after{content:'';position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:#fff;transition:left .2s}
+.qz-toggle.on .qz-sw{background:var(--ac)}
+.qz-toggle.on .qz-sw::after{left:17px}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.sc{background:var(--s2);border-radius:var(--rs);padding:.55rem;text-align:center}
+.sv{font-size:16px;font-weight:600;color:var(--tx)}
+.sl{font-size:9px;color:var(--fa);margin-top:2px;text-transform:uppercase;letter-spacing:.05em}
+
+/* ── RIGHT PANEL ── */
+.right-col{display:flex;flex-direction:column;gap:1rem}
+
+/* View tabs */
+.vtabs{display:flex;gap:6px}
+.vtab{flex:1;padding:8px;border:1px solid var(--bd);border-radius:var(--rs);background:var(--s);color:var(--mu);font-size:12px;font-family:'Inter',sans-serif;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px}
+.vtab:hover{border-color:var(--bdh);color:var(--tx)}
+.vtab.active{background:var(--acl);border-color:rgba(124,106,247,.35);color:var(--ac)}
+
+/* ── FILM STRIP VIEWER ── */
+.film-wrap{
+  background:var(--s);border:1px solid var(--bd);border-radius:var(--r);
+  overflow:hidden;position:relative;
+}
+
+/* Tira de imágenes vertical — contenedor scrollable */
+.film-strip{
+  display:flex;flex-direction:column;align-items:center;
+  gap:0;padding:0;
+  overflow-y:auto;
+  scroll-behavior:smooth;
+  max-height:540px;
+  scrollbar-width:thin;scrollbar-color:var(--bd) transparent;
+}
+.film-strip::-webkit-scrollbar{width:4px}
+.film-strip::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
+
+/* Frame individual dentro de la tira */
+.frame-item{
+  width:100%;
+  position:relative;
+  flex-shrink:0;
+  transition:opacity .2s, transform .2s;
+}
+/* Frame pendiente (aún sin respuesta) */
+.frame-item.pending{opacity:.55}
+/* Frame actual (el más reciente visible en grande) */
+.frame-item.current{opacity:1}
+/* Frames pasados (más pequeños arriba) */
+.frame-item.past{opacity:.35;transform:scale(.97)}
+
+.frame-item img{
+  width:100%;display:block;
+  object-fit:cover;
+}
+/* El frame actual se muestra grande */
+.frame-item.current img{max-height:320px;object-fit:contain;background:#000}
+/* Frames pasados más compactos */
+.frame-item.past img{max-height:90px;object-fit:cover}
+/* Frames pendientes (futuros en espera) pequeños */
+.frame-item.pending img{max-height:78px;object-fit:cover}
+
+/* Overlay de cada frame */
+.frame-overlay{
+  position:absolute;bottom:0;left:0;right:0;
+  background:linear-gradient(transparent, rgba(14,14,16,.9));
+  padding:6px 10px 7px;
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:10px;color:var(--mu);
+}
+.frame-status{
+  display:flex;align-items:center;gap:5px;
+}
+.frame-dot{width:5px;height:5px;border-radius:50%;background:var(--fa);flex-shrink:0}
+.frame-dot.ok{background:var(--gn)}
+.frame-dot.proc{background:var(--or);animation:blk 1s infinite}
+.frame-dot.err{background:var(--rd)}
+
+/* Badge de la imagen actual */
+.current-badge{
+  position:absolute;top:8px;left:8px;
+  background:rgba(124,106,247,.85);backdrop-filter:blur(6px);
+  border-radius:20px;padding:3px 10px;font-size:10px;color:#fff;
+  font-weight:600;letter-spacing:.04em;
+}
+.rec-dot{width:6px;height:6px;border-radius:50%;background:var(--rd);animation:blk 1s infinite;display:inline-block;margin-right:4px}
+
+/* FPS badge */
+.fps-badge{
+  position:absolute;top:8px;right:8px;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.08);border-radius:20px;
+  padding:3px 10px;font-size:10px;color:var(--mu);
+}
+
+/* Placeholder */
+.fph{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 2rem;color:var(--fa);text-align:center;gap:.5rem}
+.fph .ico{font-size:36px}
+.fph p{font-size:13px}
+.fph small{font-size:11px;color:var(--fa)}
+
+/* ── ANSWER BOX ── */
+.ans-box{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden}
+.ans-hdr{display:flex;align-items:center;justify-content:space-between;padding:7px 13px;border-bottom:1px solid var(--bd)}
+.ans-lbl{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--mu)}
+.ans-dot{width:5px;height:5px;border-radius:50%;background:var(--gn)}
+.mtag{font-size:10px;color:var(--fa);background:var(--s2);border:1px solid var(--bd);padding:2px 7px;border-radius:20px}
+.cp{font-size:11px;color:var(--fa);background:none;border:none;cursor:pointer;font-family:'Inter',sans-serif;transition:color .15s}
+.cp:hover{color:var(--mu)}
+.ans-body{padding:.875rem 1.1rem;font-size:13.5px;line-height:1.8;color:var(--tx);min-height:65px}
+
+/* ── QUIZ BOX ── */
+.quiz-box{display:none;background:var(--s);border:1px solid var(--ac);border-radius:var(--r);padding:.9rem;gap:.9rem;margin-bottom:0;transition:border-color .2s}
+.quiz-box.active{display:flex}
+.quiz-ans{flex-shrink:0;width:108px;height:108px;border-radius:16px;background:var(--acl);border:2px solid var(--ac);display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:700;color:var(--ac);font-family:'Instrument Serif',serif;transition:all .2s;order:2}
+.quiz-body{flex:1;min-width:0;order:1}
+.quiz-num{font-size:10px;color:var(--fa);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.2rem;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.quiz-reset{font-size:10px;color:var(--fa);background:none;border:1px solid var(--bd);border-radius:6px;padding:2px 8px;cursor:pointer;font-family:'Inter',sans-serif}
+.quiz-reset:hover{color:var(--tx);border-color:var(--bdh)}
+.quiz-q{font-size:13.5px;color:var(--tx);margin-bottom:.5rem;line-height:1.5;white-space:pre-wrap}
+.quiz-opts{display:flex;flex-direction:column;gap:3px}
+.quiz-opt{font-size:12px;padding:5px 9px;border-radius:6px;border:1px solid var(--bd);color:var(--mu);display:flex;transition:all .2s}
+.quiz-opt.correct{font-weight:600}
+.quiz-reason{font-size:11px;color:var(--fa);margin-top:.4rem;font-style:italic}
+.quiz-box.compact{padding:.7rem;gap:.7rem}
+.quiz-box.compact .quiz-ans{width:68px;height:68px;font-size:36px;border-radius:12px}
+.quiz-box.compact .quiz-q{font-size:12px}
+.quiz-box.compact .quiz-opt{font-size:11px;padding:3px 7px}
+
+.quiz-box.ans-A{border-color:#ff6b6b}
+.quiz-box.ans-A .quiz-ans{border-color:#ff6b6b;background:rgba(255,107,107,.14);color:#ff6b6b}
+.quiz-box.ans-A .quiz-opt.correct{border-color:#ff6b6b;background:rgba(255,107,107,.14);color:#ff6b6b}
+.quiz-box.ans-B{border-color:var(--gn)}
+.quiz-box.ans-B .quiz-ans{border-color:var(--gn);background:rgba(62,207,142,.14);color:var(--gn)}
+.quiz-box.ans-B .quiz-opt.correct{border-color:var(--gn);background:rgba(62,207,142,.14);color:var(--gn)}
+.quiz-box.ans-C{border-color:#4da3ff}
+.quiz-box.ans-C .quiz-ans{border-color:#4da3ff;background:rgba(77,163,255,.14);color:#4da3ff}
+.quiz-box.ans-C .quiz-opt.correct{border-color:#4da3ff;background:rgba(77,163,255,.14);color:#4da3ff}
+.quiz-box.ans-D{border-color:var(--or)}
+.quiz-box.ans-D .quiz-ans{border-color:var(--or);background:rgba(245,166,35,.14);color:var(--or)}
+.quiz-box.ans-D .quiz-opt.correct{border-color:var(--or);background:rgba(245,166,35,.14);color:var(--or)}
+
+/* ── DUAL VIEW ── */
+.dual{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:1000px){.dual{grid-template-columns:1fr}}
+.user-view{display:flex;flex-direction:column;gap:.75rem}
+
+/* ── LOADING DOTS ── */
+.ldots{display:inline-flex;gap:4px;align-items:center}
+.ldots span{width:5px;height:5px;border-radius:50%;background:var(--ac);opacity:.3;animation:blk 1.2s infinite}
+.ldots span:nth-child(2){animation-delay:.2s}
+.ldots span:nth-child(3){animation-delay:.4s}
+.errt{color:var(--rd);font-size:13px}
+
+footer{text-align:center;padding:1.25rem;border-top:1px solid var(--bd);font-size:11px;color:var(--fa)}
+
+/* ── PULSO GLOBAL (color de respuesta) ── */
+#pulseOverlay{position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:0;transition:opacity .4s}
+#pulseOverlay.show{animation:pulseGlow 1.6s ease-in-out infinite}
+#pulseOverlay.pulse-A{background:radial-gradient(circle at 50% 50%, rgba(255,107,107,.5), transparent 75%);box-shadow:inset 0 0 160px rgba(255,107,107,.5)}
+#pulseOverlay.pulse-B{background:radial-gradient(circle at 50% 50%, rgba(62,207,142,.5), transparent 75%);box-shadow:inset 0 0 160px rgba(62,207,142,.5)}
+#pulseOverlay.pulse-C{background:radial-gradient(circle at 50% 50%, rgba(77,163,255,.5), transparent 75%);box-shadow:inset 0 0 160px rgba(77,163,255,.5)}
+#pulseOverlay.pulse-D{background:radial-gradient(circle at 50% 50%, rgba(245,166,35,.5), transparent 75%);box-shadow:inset 0 0 160px rgba(245,166,35,.5)}
+@keyframes pulseGlow{0%,100%{opacity:.35}50%{opacity:1}}
+
+/* Número de pregunta en grande */
+.quiz-bignum{font-family:'Instrument Serif',serif;font-size:22px;font-weight:700;color:var(--tx)}
+.quiz-box.compact .quiz-bignum{font-size:16px}
+
+/* ── RESPUESTA RESUELTA POR IA POTENTE ── */
+.quiz-solved{
+  font-size:21px;font-weight:700;line-height:1.4;color:var(--tx);
+  background:var(--s2);border:1px solid var(--ac);border-radius:10px;
+  padding:.6rem .8rem;margin-bottom:.55rem;
+}
+.quiz-solved .qs-lbl{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--ac);margin-bottom:.25rem}
+.quiz-solved .qs-detail{display:block;font-size:11px;font-weight:400;color:var(--mu);margin-top:.3rem;font-style:italic}
+.quiz-box.compact .quiz-solved{font-size:15px;padding:.45rem .6rem}
+.quiz-solved .katex{font-size:1.05em}
+</style>
+</head>
+<body>
+<div id="pulseOverlay"></div>
+
+<nav>
+  <a class="logo" href="#">Vision<b>IA</b> <span style="font-family:'Inter';font-size:.68rem;color:var(--fa);font-weight:400">Monitor</span></a>
+  <div class="nav-r">
+    <div class="pill"><span class="pd" id="srvDot"></span><span id="srvTxt">Sin servidor</span></div>
+    <div class="pill"><span class="pd" id="u1dot"></span>U1</div>
+    <div class="pill"><span class="pd" id="u2dot"></span>U2</div>
+    <button class="cfg-toggle" id="cfgToggle" onclick="toggleCfg()">⚙️ Ocultar config</button>
+  </div>
+</nav>
+
+<main id="main">
+
+<!-- ══ IZQUIERDA ══ -->
+<div class="left-col">
+
+  <!-- Servidor -->
+  <div class="box">
+    <p class="bt">Servidor</p>
+    <div class="field" style="margin-bottom:.5rem">
+      <label>URL del servidor</label>
+      <div class="srv-row">
+        <input id="srvUrl" value="http://localhost:3000" placeholder="https://abc.loca.lt"/>
+        <button class="sbtn" onclick="connectSrv()">Conectar</button>
+      </div>
+    </div>
+    <div class="sr"><span class="srd" id="srd"></span><span id="srt">Ingresa la URL del servidor</span></div>
+    <div class="cam-links" id="camLinks" style="display:none">
+      <button class="cam-btn" onclick="openCam(1)">📱 Cámara U1</button>
+      <button class="cam-btn" onclick="openCam(2)">📱 Cámara U2</button>
+      <button class="cam-btn" onclick="copyCam(1)">📋 Copiar U1</button>
+    </div>
+  </div>
+
+  <!-- Tabs usuarios -->
+  <div class="box" style="padding:.7rem">
+    <div class="utabs">
+      <button class="utab active" onclick="switchLeft(1)"><span class="udot" id="udl1"></span>Usuario 1</button>
+      <button class="utab"        onclick="switchLeft(2)"><span class="udot" id="udl2"></span>Usuario 2</button>
+    </div>
+  </div>
+
+  <!-- Panel U1 -->
+  <div class="upanel active" id="up1">
+    <div class="box">
+      <p class="bt">Configuración — U1</p>
+      <div class="field">
+        <label>Modelo GPT</label>
+        <select id="ms1" onchange="updSt(1)">
+          <optgroup label="GPT-5">
+            <option value="gpt-5">GPT-5</option>
+            <option value="gpt-5-mini">GPT-5 Mini</option>
+            <option value="gpt-5-nano">GPT-5 Nano</option>
+          </optgroup>
+          <optgroup label="GPT-4.1">
+            <option value="gpt-4.1-mini" selected>GPT-4.1 Mini — Recomendado ⚡</option>
+            <option value="gpt-4.1">GPT-4.1</option>
+            <option value="gpt-4.1-nano">GPT-4.1 Nano</option>
+          </optgroup>
+          <optgroup label="GPT-4o">
+            <option value="gpt-4o">GPT-4o</option>
+            <option value="gpt-4o-mini">GPT-4o Mini</option>
+            <option value="chatgpt-4o-latest">ChatGPT-4o Latest</option>
+          </optgroup>
+          <optgroup label="Razonamiento (o-series)">
+            <option value="o4-mini">o4-mini</option>
+            <option value="o3">o3</option>
+            <option value="o3-mini">o3-mini</option>
+            <option value="o1">o1</option>
+            <option value="o1-mini">o1-mini</option>
+            <option value="o1-pro">o1-pro</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="prompt-row hidden" id="pr1wrap">
+        <div class="field" style="margin-bottom:.4rem">
+          <label>Prompt</label>
+          <textarea id="pr1">Describe brevemente lo que ves en esta imagen. Máximo 3 oraciones.</textarea>
+        </div>
+      </div>
+      <div class="qz-toggle on" id="qzt1" onclick="toggleQuiz(1)">
+        <span>🧩 Modo cuestionario</span>
+        <div class="qz-sw"></div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="sc"><div class="sv" id="c1r">0</div><div class="sl">Recibidas</div></div>
+      <div class="sc"><div class="sv" id="c1a">0</div><div class="sl">Analizadas</div></div>
+      <div class="sc"><div class="sv" id="c1k">—</div><div class="sl">KB</div></div>
+    </div>
+  </div>
+
+  <!-- Panel U2 -->
+  <div class="upanel" id="up2">
+    <div class="box">
+      <p class="bt">Configuración — U2</p>
+      <div class="field">
+        <label>Modelo GPT</label>
+        <select id="ms2" onchange="updSt(2)">
+          <optgroup label="GPT-5">
+            <option value="gpt-5">GPT-5</option>
+            <option value="gpt-5-mini">GPT-5 Mini</option>
+            <option value="gpt-5-nano">GPT-5 Nano</option>
+          </optgroup>
+          <optgroup label="GPT-4.1">
+            <option value="gpt-4.1-mini" selected>GPT-4.1 Mini — Recomendado ⚡</option>
+            <option value="gpt-4.1">GPT-4.1</option>
+            <option value="gpt-4.1-nano">GPT-4.1 Nano</option>
+          </optgroup>
+          <optgroup label="GPT-4o">
+            <option value="gpt-4o">GPT-4o</option>
+            <option value="gpt-4o-mini">GPT-4o Mini</option>
+            <option value="chatgpt-4o-latest">ChatGPT-4o Latest</option>
+          </optgroup>
+          <optgroup label="Razonamiento (o-series)">
+            <option value="o4-mini">o4-mini</option>
+            <option value="o3">o3</option>
+            <option value="o3-mini">o3-mini</option>
+            <option value="o1">o1</option>
+            <option value="o1-mini">o1-mini</option>
+            <option value="o1-pro">o1-pro</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="prompt-row hidden" id="pr2wrap">
+        <div class="field" style="margin-bottom:.4rem">
+          <label>Prompt</label>
+          <textarea id="pr2">Describe brevemente lo que ves en esta imagen. Máximo 3 oraciones.</textarea>
+        </div>
+      </div>
+      <div class="qz-toggle on" id="qzt2" onclick="toggleQuiz(2)">
+        <span>🧩 Modo cuestionario</span>
+        <div class="qz-sw"></div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="sc"><div class="sv" id="c2r">0</div><div class="sl">Recibidas</div></div>
+      <div class="sc"><div class="sv" id="c2a">0</div><div class="sl">Analizadas</div></div>
+      <div class="sc"><div class="sv" id="c2k">—</div><div class="sl">KB</div></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ DERECHA ══ -->
+<div class="right-col">
+
+  <div class="vtabs">
+    <button class="vtab active" id="vb1" onclick="setView('u1')">📱 Usuario 1</button>
+    <button class="vtab"        id="vb2" onclick="setView('u2')">📱 Usuario 2</button>
+    <button class="vtab"        id="vbS" onclick="setView('split')">⊞ Ambos</button>
+  </div>
+
+  <!-- ── VISTA U1 ── -->
+  <div id="vU1">
+    <div class="user-view">
+      <div class="quiz-box" id="quizbox1">
+        <div class="quiz-ans"><span id="qzletter1">?</span></div>
+        <div class="quiz-body">
+          <div class="quiz-num"><span class="quiz-bignum" id="qznum1">Pregunta —</span><button class="quiz-reset" onclick="resetQuiz(1)">🔄</button></div>
+          <div class="quiz-solved" id="qzsolved1"><span class="qs-lbl">Respuesta IA</span>—</div>
+          <div class="quiz-q" id="qztext1">Esperando pregunta...</div>
+          <div class="quiz-opts">
+            <div class="quiz-opt" id="qzopt1A"><span>A. —</span></div>
+            <div class="quiz-opt" id="qzopt1B"><span>B. —</span></div>
+            <div class="quiz-opt" id="qzopt1C"><span>C. —</span></div>
+            <div class="quiz-opt" id="qzopt1D"><span>D. —</span></div>
+          </div>
+          <div class="quiz-reason" id="qzreason1"></div>
+        </div>
+      </div>
+      <!-- Film strip U1 -->
+      <div class="film-wrap">
+        <div class="film-strip" id="strip1">
+          <div class="fph" id="fph1">
+            <div class="ico">📱</div>
+            <p>Esperando iPhone 1...</p>
+            <small>Conecta el servidor y abre la cámara</small>
+          </div>
+        </div>
+        <div class="fps-badge" id="fps1" style="display:none"></div>
+      </div>
+      <div class="ans-box">
+        <div class="ans-hdr">
+          <div class="ans-lbl"><span class="ans-dot"></span>Análisis U1 <span class="mtag" id="mt1">—</span></div>
+          <button class="cp" onclick="cpAns(1)">Copiar</button>
+        </div>
+        <div class="ans-body" id="ab1"><span style="color:var(--fa)">Esperando primera imagen...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── VISTA U2 ── -->
+  <div id="vU2" style="display:none">
+    <div class="user-view">
+      <div class="quiz-box" id="quizbox2">
+        <div class="quiz-ans"><span id="qzletter2">?</span></div>
+        <div class="quiz-body">
+          <div class="quiz-num"><span class="quiz-bignum" id="qznum2">Pregunta —</span><button class="quiz-reset" onclick="resetQuiz(2)">🔄</button></div>
+          <div class="quiz-solved" id="qzsolved2"><span class="qs-lbl">Respuesta IA</span>—</div>
+          <div class="quiz-q" id="qztext2">Esperando pregunta...</div>
+          <div class="quiz-opts">
+            <div class="quiz-opt" id="qzopt2A"><span>A. —</span></div>
+            <div class="quiz-opt" id="qzopt2B"><span>B. —</span></div>
+            <div class="quiz-opt" id="qzopt2C"><span>C. —</span></div>
+            <div class="quiz-opt" id="qzopt2D"><span>D. —</span></div>
+          </div>
+          <div class="quiz-reason" id="qzreason2"></div>
+        </div>
+      </div>
+      <div class="film-wrap">
+        <div class="film-strip" id="strip2">
+          <div class="fph" id="fph2">
+            <div class="ico">📱</div>
+            <p>Esperando iPhone 2...</p>
+            <small>Conecta el servidor y abre la cámara</small>
+          </div>
+        </div>
+        <div class="fps-badge" id="fps2" style="display:none"></div>
+      </div>
+      <div class="ans-box">
+        <div class="ans-hdr">
+          <div class="ans-lbl"><span class="ans-dot"></span>Análisis U2 <span class="mtag" id="mt2">—</span></div>
+          <button class="cp" onclick="cpAns(2)">Copiar</button>
+        </div>
+        <div class="ans-body" id="ab2"><span style="color:var(--fa)">Esperando primera imagen...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── VISTA SPLIT ── -->
+  <div id="vSplit" style="display:none">
+    <div class="dual">
+      <div class="user-view">
+        <div class="quiz-box compact" id="quizbox1s">
+          <div class="quiz-ans"><span id="qzletter1s">?</span></div>
+          <div class="quiz-body">
+            <div class="quiz-num"><span class="quiz-bignum" id="qznum1s">Pregunta —</span></div>
+            <div class="quiz-solved" id="qzsolved1s"><span class="qs-lbl">Respuesta IA</span>—</div>
+            <div class="quiz-q" id="qztext1s">Esperando...</div>
+            <div class="quiz-opts">
+              <div class="quiz-opt" id="qzopt1sA"><span>A. —</span></div>
+              <div class="quiz-opt" id="qzopt1sB"><span>B. —</span></div>
+              <div class="quiz-opt" id="qzopt1sC"><span>C. —</span></div>
+              <div class="quiz-opt" id="qzopt1sD"><span>D. —</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="film-wrap">
+          <div class="film-strip" id="strip1s">
+            <div class="fph"><div class="ico">📱</div><p style="font-size:12px">iPhone 1...</p></div>
+          </div>
+        </div>
+        <div class="ans-box">
+          <div class="ans-hdr"><div class="ans-lbl"><span class="ans-dot"></span>U1 <span class="mtag" id="mt1s">—</span></div></div>
+          <div class="ans-body" id="ab1s" style="font-size:13px;min-height:55px"><span style="color:var(--fa)">Esperando...</span></div>
+        </div>
+      </div>
+      <div class="user-view">
+        <div class="quiz-box compact" id="quizbox2s">
+          <div class="quiz-ans"><span id="qzletter2s">?</span></div>
+          <div class="quiz-body">
+            <div class="quiz-num"><span class="quiz-bignum" id="qznum2s">Pregunta —</span></div>
+            <div class="quiz-solved" id="qzsolved2s"><span class="qs-lbl">Respuesta IA</span>—</div>
+            <div class="quiz-q" id="qztext2s">Esperando...</div>
+            <div class="quiz-opts">
+              <div class="quiz-opt" id="qzopt2sA"><span>A. —</span></div>
+              <div class="quiz-opt" id="qzopt2sB"><span>B. —</span></div>
+              <div class="quiz-opt" id="qzopt2sC"><span>C. —</span></div>
+              <div class="quiz-opt" id="qzopt2sD"><span>D. —</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="film-wrap">
+          <div class="film-strip" id="strip2s">
+            <div class="fph"><div class="ico">📱</div><p style="font-size:12px">iPhone 2...</p></div>
+          </div>
+        </div>
+        <div class="ans-box">
+          <div class="ans-hdr"><div class="ans-lbl"><span class="ans-dot"></span>U2 <span class="mtag" id="mt2s">—</span></div></div>
+          <div class="ans-body" id="ab2s" style="font-size:13px;min-height:55px"><span style="color:var(--fa)">Esperando...</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</main>
+
+<footer><p>VisionIA · iPhone → WebSocket/HTTP → Node.js → SSE → Monitor → GPT</p></footer>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════════════════
+const OPENAI_KEY = "";
+
+// Máximo frames guardados visualmente en la tira
+const MAX_STRIP_FRAMES = 12;
+
+// Modelo potente fijo usado para resolver la pregunta de forma independiente
+// (no depende del modelo elegido por el usuario)
+const SOLVER_MODEL = 'gpt-5';
+
+// ══════════════════════════════════════════════════════
+//  ESTADO
+// ══════════════════════════════════════════════════════
+const U = {
+  1:{ sse:null, rcv:0, ana:0, ans:'', lastTs:0, frameSeq:0,
+      quizMode:true, quiz:{qnum:null,question:'',options:{A:'',B:'',C:'',D:''},answer:null,reason:'',solved:'',solving:false},
+      frames:[] // [{id,url,mime,ts,status:'pending'|'processing'|'done'|'err',reply}]
+  },
+  2:{ sse:null, rcv:0, ana:0, ans:'', lastTs:0, frameSeq:0,
+      quizMode:true, quiz:{qnum:null,question:'',options:{A:'',B:'',C:'',D:''},answer:null,reason:'',solved:'',solving:false},
+      frames:[]
+  }
+};
+let srvUrl = 'http://localhost:3000';
+let activeLeft = 1;
+let view = 'u1';
+
+// ══════════════════════════════════════════════════════
+//  SERVIDOR
+// ══════════════════════════════════════════════════════
+function connectSrv() {
+  srvUrl = document.getElementById('srvUrl').value.trim().replace(/\/$/,'');
+  fetch(srvUrl+'/status',{headers:{'ngrok-skip-browser-warning':'1'}})
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.ok){
+        setSrvDot('on','Servidor conectado');
+        document.getElementById('camLinks').style.display='flex';
+        startSSE(1); startSSE(2);
+      }
+    })
+    .catch(()=>setSrvDot('err','Sin conexión — ¿está corriendo node server.js?'));
+}
+
+function setSrvDot(state, txt) {
+  document.getElementById('srvDot').className='pd'+(state==='on'?' on':state==='err'?' wait':'');
+  document.getElementById('srvTxt').textContent=txt;
+  document.getElementById('srd').className='srd'+(state==='on'?' ok':state==='err'?' err':'');
+  document.getElementById('srt').textContent=txt;
+}
+
+function openCam(u) {
+  window.open(srvUrl+'/cam?srv='+encodeURIComponent(srvUrl)+'&u='+u,'_blank');
+}
+function copyCam(u) {
+  const url=srvUrl+'/cam?srv='+encodeURIComponent(srvUrl)+'&u='+u;
+  navigator.clipboard.writeText(url).then(()=>{
+    const btn=event.target; const o=btn.textContent;
+    btn.textContent='✅ Copiado'; setTimeout(()=>btn.textContent=o,2000);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  SSE
+// ══════════════════════════════════════════════════════
+function startSSE(u) {
+  if(U[u].sse) U[u].sse.close();
+  const es = new EventSource(srvUrl+'/events/'+u);
+  U[u].sse = es;
+  es.addEventListener('connected', ()=>{
+    document.getElementById('u'+u+'dot').className='pd on';
+    document.getElementById('udl'+u).className='udot on';
+  });
+  es.addEventListener('frame', e=>{
+    try{ onFrame(u, JSON.parse(e.data)); }catch(ex){ console.error(ex); }
+  });
+  es.onerror = ()=>{
+    document.getElementById('u'+u+'dot').className='pd wait';
+    document.getElementById('udl'+u).className='udot wait';
+    setTimeout(()=>startSSE(u), 4000);
+  };
+}
+
+// ══════════════════════════════════════════════════════
+//  FRAME RECIBIDO — sin cola, análisis inmediato e independiente
+// ══════════════════════════════════════════════════════
+function onFrame(u, msg) {
+  // FPS
+  const now = Date.now();
+  if(U[u].lastTs){
+    const fps = Math.round(1000/(now-U[u].lastTs)*10)/10;
+    const el = document.getElementById('fps'+u);
+    if(el){ el.style.display='block'; el.textContent=fps+' fps'; }
+  }
+  U[u].lastTs = now;
+
+  U[u].rcv++;
+  document.getElementById('c'+u+'r').textContent = U[u].rcv;
+  document.getElementById('c'+u+'k').textContent = msg.sizeKB+'KB';
+
+  const id = ++U[u].frameSeq;
+  const ts = new Date(msg.ts).toLocaleTimeString();
+  const frame = { id, url:msg.dataUrl, mime:msg.mimeType||'image/jpeg', ts, status:'processing', reply:'' };
+
+  // Añadir al principio (más reciente arriba en el array, pero se renderiza abajo como "actual")
+  U[u].frames.unshift(frame);
+  if(U[u].frames.length > MAX_STRIP_FRAMES) U[u].frames.pop();
+
+  renderStrip(u);
+
+  // Análisis inmediato e independiente — sin esperar a otros frames
+  doAnalyze(u, frame);
+}
+
+// ══════════════════════════════════════════════════════
+//  FILM STRIP RENDER
+// ══════════════════════════════════════════════════════
+function renderStrip(u) {
+  const strips = ['strip'+u];
+  if(u===1) strips.push('strip1s');
+  if(u===2) strips.push('strip2s');
+
+  strips.forEach(sid => {
+    const el = document.getElementById(sid);
+    if(!el) return;
+    const frames = U[u].frames;
+    if(!frames.length) return;
+
+    // Construir HTML — primer frame es el actual (grande), el resto son pasados/pendientes arriba
+    // Layout: los más viejos arriba (past), el actual en el centro-abajo
+    // En el array frames[0] = más reciente
+
+    let html = '';
+
+    // Frames "pasados" (ya analizados, más viejos) — se muestran compactos encima
+    const past = frames.slice(1); // índices 1..N = más viejos
+    // Invertir para mostrar el más antiguo arriba
+    [...past].reverse().forEach(f => {
+      html += frameHTML(f, 'past', sid.includes('s'));
+    });
+
+    // Frame actual (el más reciente) — grande, en el centro
+    html += frameHTML(frames[0], 'current', sid.includes('s'));
+
+    el.innerHTML = html;
+
+    // Scroll automático al frame actual (abajo)
+    el.scrollTop = el.scrollHeight;
+  });
+}
+
+function frameHTML(f, role, compact) {
+  const dotCls = f.status==='processing' ? 'proc' : f.status==='done' ? 'ok' : f.status==='err' ? 'err' : '';
+  const statusTxt = f.status==='processing' ? 'Analizando...' : f.status==='done' ? 'Listo' : f.status==='err' ? 'Error' : 'Pendiente';
+  const isCurrent = role==='current';
+
+  return `
+  <div class="frame-item ${role}" data-fid="${f.id}" style="position:relative">
+    ${isCurrent && !compact ? `<div class="current-badge"><span class="rec-dot"></span>ACTUAL</div>` : ''}
+    <img src="${f.url}" alt="frame ${f.id}" loading="lazy"/>
+    <div class="frame-overlay">
+      <div class="frame-status">
+        <span class="frame-dot ${dotCls}"></span>
+        <span>${statusTxt}</span>
+      </div>
+      <span style="color:var(--fa)">${f.ts}</span>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════
+//  ANÁLISIS — paralelo, sin cola, cada frame independiente
+// ══════════════════════════════════════════════════════
+async function doAnalyze(u, frame) {
+  const model   = document.getElementById('ms'+u).value;
+  const prompt  = U[u].quizMode ? buildQuizPrompt(u) : (document.getElementById('pr'+u).value.trim() || 'Describe lo que ves brevemente.');
+  const b64     = frame.url.split(',')[1];
+  const mime    = frame.mime || 'image/jpeg';
+
+  // Mostrar "pensando" en el answer box solo si este es el frame más reciente
+  const isLatest = () => U[u].frames.length > 0 && U[u].frames[0].id === frame.id;
+  if(isLatest()){
+    const dots = '<div class="ldots"><span></span><span></span><span></span></div>';
+    document.getElementById('ab'+u).innerHTML = dots;
+    const els = document.getElementById('ab'+u+'s');
+    if(els) els.innerHTML = dots;
+  }
+
+  try {
+    const r = await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+OPENAI_KEY
+      },
+      body: JSON.stringify({
+        model,
+        max_completion_tokens: 1024,
+        messages:[{
+          role:'user',
+          content:[
+            { type:'image_url', image_url:{ url: frame.url, detail:'auto' } },
+            { type:'text', text: prompt }
+          ]
+        }]
+      })
+    });
+    const d = await r.json();
+    if(d.error) throw new Error(d.error.message);
+    const reply = d.choices?.[0]?.message?.content || 'Sin respuesta.';
+
+    frame.status = 'done';
+    frame.reply  = reply;
+    U[u].ana++;
+    U[u].ans = reply;
+    document.getElementById('c'+u+'a').textContent = U[u].ana;
+
+    // Actualizar answer box si este sigue siendo el más reciente
+    if(isLatest()){
+      document.getElementById('ab'+u).textContent = reply;
+      const els = document.getElementById('ab'+u+'s');
+      if(els) els.textContent = reply;
+      document.getElementById('mt'+u).textContent = model;
+      const mts = document.getElementById('mt'+u+'s');
+      if(mts) mts.textContent = model;
+    }
+
+    if(U[u].quizMode){
+      const data = parseQuizJSON(reply);
+      if(data){
+        const isNewQ = mergeQuiz(u, data);
+        if(isNewQ) solveIndependent(u, frame);
+      }
+    }
+
+  } catch(e) {
+    frame.status = 'err';
+    frame.reply  = e.message;
+    if(isLatest()){
+      const err = `<span class="errt">Error: ${esc(e.message)}</span>`;
+      document.getElementById('ab'+u).innerHTML = err;
+      const els = document.getElementById('ab'+u+'s');
+      if(els) els.innerHTML = err;
+    }
+  }
+
+  // Re-renderizar la tira para actualizar el indicador de estado
+  renderStrip(u);
+}
+
+// ══════════════════════════════════════════════════════
+//  QUIZ
+// ══════════════════════════════════════════════════════
+function toggleQuiz(u) {
+  U[u].quizMode = !U[u].quizMode;
+  const toggle = document.getElementById('qzt'+u);
+  toggle.classList.toggle('on', U[u].quizMode);
+  // Ocultar/mostrar prompt
+  document.getElementById('pr'+u+'wrap').classList.toggle('hidden', U[u].quizMode);
+  // Mostrar/ocultar quiz box
+  if(U[u].quizMode) renderQuiz(u);
+  else {
+    document.getElementById('quizbox'+u).classList.remove('active');
+    const s = document.getElementById('quizbox'+u+'s');
+    if(s) s.classList.remove('active');
+  }
+}
+
+function resetQuiz(u) {
+  U[u].quiz = {qnum:null,question:'',options:{A:'',B:'',C:'',D:''},answer:null,reason:'',solved:'',solving:false};
+  renderQuiz(u);
+}
+
+function buildQuizPrompt(u) {
+  const st = U[u].quiz;
+  let ctx = '';
+  if(st.qnum!=null){
+    ctx = `Contexto acumulado PREGUNTA ${st.qnum}:\n`+
+      `Pregunta: "${st.question||'(sin texto)'}"\n`+
+      ['A','B','C','D'].map(k=>`${k}: "${st.options[k]||'(sin texto)'}"`).join('\n')+
+      (st.answer?`\nRespuesta hasta ahora: ${st.answer}`:'')+'\n\n';
+  }
+  return `Estás resolviendo un cuestionario de opción múltiple (A,B,C,D) a partir de capturas que pueden llegar fragmentadas.\n\n${ctx}`+
+    `Analiza la imagen adjunta y responde ÚNICAMENTE con JSON válido (sin markdown, sin texto extra):\n`+
+    `{"qnum":<número entero si es pregunta NUEVA distinta al contexto, si no null>,`+
+    `"question":"<texto visible de la pregunta, vacío si no hay>",`+
+    `"options":{"A":"","B":"","C":"","D":""},`+
+    `"answer":"<A,B,C o D; null si no hay info suficiente>",`+
+    `"reason":"<justificación breve máx 20 palabras>"}`;
+}
+
+function buildSolverPrompt() {
+  return `Eres un experto resolviendo exámenes de cualquier materia (incluye matemáticas, física, química, etc.).\n`+
+    `Observa la imagen y resuelve la pregunta visible, sin importar si tiene o no opciones de respuesta (A,B,C,D).\n`+
+    `Tu objetivo es dar la respuesta CORRECTA y FIABLE de forma directa.\n\n`+
+    `Reglas de formato para la respuesta:\n`+
+    `- Si la respuesta es una opción (A,B,C,D), indícala junto con el valor/resultado correspondiente.\n`+
+    `- Si involucra cálculos matemáticos o químicos (raíces, fracciones, exponentes, ecuaciones, fórmulas, etc.), `+
+    `escribe la notación matemática usando LaTeX envuelto en signos de dólar, por ejemplo: $\\sqrt{16}=4$, $\\frac{3}{4}$, $x^{2}$, $H_{2}O$.\n`+
+    `- La respuesta principal debe ser breve (máx 15 palabras o una expresión matemática), va en el campo "respuesta".\n`+
+    `- En "detalle" da una justificación breve (máx 20 palabras), sin repetir la respuesta completa.\n\n`+
+    `Responde ÚNICAMENTE con JSON válido (sin markdown, sin texto extra):\n`+
+    `{"respuesta":"<respuesta final, puede incluir notación LaTeX con $...$>","detalle":"<justificación breve>"}`;
+}
+
+async function solveIndependent(u, frame) {
+  const st = U[u].quiz;
+  st.solving = true;
+  renderQuiz(u);
+
+  const b64  = frame.url.split(',')[1];
+  const mime = frame.mime || 'image/jpeg';
+
+  try {
+    const r = await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+OPENAI_KEY
+      },
+      body: JSON.stringify({
+        model: SOLVER_MODEL,
+        max_completion_tokens: 600,
+        messages:[{
+          role:'user',
+          content:[
+            { type:'image_url', image_url:{ url: frame.url, detail:'high' } },
+            { type:'text', text: buildSolverPrompt() }
+          ]
+        }]
+      })
+    });
+    const d = await r.json();
+    if(d.error) throw new Error(d.error.message);
+    const reply = d.choices?.[0]?.message?.content || '';
+    const data = parseQuizJSON(reply);
+    if(data && data.respuesta){
+      st.solved = esc(data.respuesta) + (data.detalle ? `<span class="qs-detail">${esc(data.detalle)}</span>` : '');
+    } else {
+      st.solved = esc(reply || 'Sin respuesta.');
+    }
+  } catch(e) {
+    st.solved = `<span class="errt">Error: ${esc(e.message)}</span>`;
+  }
+
+  st.solving = false;
+  renderQuiz(u);
+}
+  try {
+    let t = String(s).trim().replace(/^```json/i,'').replace(/^```/,'').replace(/```$/,'').trim();
+    const a=t.indexOf('{'), b=t.lastIndexOf('}');
+    if(a===-1||b===-1) return null;
+    return JSON.parse(t.slice(a,b+1));
+  } catch { return null; }
+}
+
+function mergeQuiz(u, data) {
+  const st = U[u].quiz;
+  const incoming = (data.question||'').trim();
+  const current  = (st.question||'').trim();
+  const isNew = incoming && current && !incoming.includes(current) && !current.includes(incoming);
+
+  if(isNew){
+    st.qnum = (data.qnum!=null) ? data.qnum : (st.qnum!=null ? st.qnum+1 : 1);
+    st.question = incoming;
+    st.options={A:'',B:'',C:'',D:''}; st.answer=null; st.reason='';
+    st.solved=''; st.solving=false;
+  } else {
+    if(!current && incoming){
+      st.question = incoming;
+      if(data.qnum!=null) st.qnum = data.qnum;
+    } else if(incoming && !current.includes(incoming)){
+      st.question = (current?current+' ':'')+incoming;
+    }
+    if(st.qnum==null && data.qnum!=null) st.qnum = data.qnum;
+  }
+
+  ['A','B','C','D'].forEach(k=>{ if(data.options?.[k]) st.options[k]=data.options[k]; });
+  if(data.answer && 'ABCD'.includes(data.answer)){ st.answer=data.answer; st.reason=data.reason||''; }
+  else if(data.reason){ st.reason=data.reason; }
+  renderQuiz(u);
+  return isNew || (!current && incoming);
+}
+
+function renderQuiz(u) {
+  const st = U[u].quiz;
+  const active = U[u].quizMode;
+  ['','s'].forEach(suf=>{
+    const box = document.getElementById('quizbox'+u+suf);
+    if(!box) return;
+    box.classList.toggle('active', active);
+    box.classList.remove('ans-A','ans-B','ans-C','ans-D');
+    if(!active) return;
+    if(st.answer) box.classList.add('ans-'+st.answer);
+    document.getElementById('qzletter'+u+suf).textContent = st.answer||'?';
+    document.getElementById('qznum'+u+suf).textContent = st.qnum!=null?('Pregunta '+st.qnum):'Pregunta actual';
+    document.getElementById('qztext'+u+suf).textContent = st.question||'Esperando texto...';
+
+    // Respuesta resuelta por IA potente (independiente, prioridad visual alta)
+    const sv = document.getElementById('qzsolved'+u+suf);
+    if(sv){
+      let body;
+      if(st.solving) body = '<span class="ldots"><span></span><span></span><span></span></span>';
+      else if(st.solved) body = st.solved;
+      else body = '—';
+      sv.innerHTML = '<span class="qs-lbl">Respuesta IA</span>'+body;
+      if(window.renderMathInElement){
+        renderMathInElement(sv, {
+          delimiters:[
+            {left:'$$', right:'$$', display:true},
+            {left:'$', right:'$', display:false},
+            {left:'\\(', right:'\\)', display:false},
+            {left:'\\[', right:'\\]', display:true}
+          ]
+        });
+      }
+    }
+    ['A','B','C','D'].forEach(k=>{
+      const el = document.getElementById('qzopt'+u+suf+k);
+      if(!el) return;
+      el.querySelector('span').textContent = k+'. '+(st.options[k]||'—');
+      el.classList.toggle('correct', st.answer===k);
+    });
+    const r = document.getElementById('qzreason'+u+suf);
+    if(r) r.textContent = st.reason||'';
+  });
+
+  // ── Pulso global de color en toda la interfaz ──
+  // Solo lo controla el panel activo a la izquierda (activeLeft), o cualquiera si solo uno está en quiz mode
+  updatePulse();
+}
+
+function updatePulse() {
+  const overlay = document.getElementById('pulseOverlay');
+  // Prioriza el usuario activo en el panel izquierdo; si no tiene quiz activo, usa el otro
+  let candidates = [activeLeft, activeLeft===1?2:1];
+  let chosen = null;
+  for(const u of candidates){
+    if(U[u].quizMode && U[u].quiz.answer){ chosen = U[u].quiz.answer; break; }
+  }
+  overlay.classList.remove('pulse-A','pulse-B','pulse-C','pulse-D','show');
+  if(chosen){
+    overlay.classList.add('pulse-'+chosen, 'show');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  UI
+// ══════════════════════════════════════════════════════
+function setView(v) {
+  view=v;
+  document.getElementById('vU1').style.display    = v==='u1'?'block':'none';
+  document.getElementById('vU2').style.display    = v==='u2'?'block':'none';
+  document.getElementById('vSplit').style.display = v==='split'?'block':'none';
+  ['vb1','vb2','vbS'].forEach((id,i)=>
+    document.getElementById(id).classList.toggle('active',['u1','u2','split'][i]===v)
+  );
+}
+
+function switchLeft(u) {
+  activeLeft=u;
+  [1,2].forEach(i=>{
+    document.getElementById('up'+i).classList.toggle('active',i===u);
+    document.querySelectorAll('.utab')[i-1].classList.toggle('active',i===u);
+  });
+  updatePulse();
+}
+
+function updSt(u) {
+  const m = document.getElementById('ms'+u).value;
+  document.getElementById('mt'+u).textContent = m;
+  const s = document.getElementById('mt'+u+'s'); if(s) s.textContent=m;
+}
+
+function cpAns(u) {
+  if(!U[u].ans) return;
+  navigator.clipboard.writeText(U[u].ans).then(()=>{
+    const btns = document.querySelectorAll('.cp');
+    btns[u-1].textContent='¡Copiado!';
+    setTimeout(()=>btns[u-1].textContent='Copiar',2000);
+  });
+}
+
+function toggleCfg() {
+  const main = document.getElementById('main');
+  const btn  = document.getElementById('cfgToggle');
+  const hidden = main.classList.toggle('no-left');
+  btn.textContent = hidden ? '⚙️ Mostrar config' : '⚙️ Ocultar config';
+}
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Init
+[1,2].forEach(u=>{ updSt(u); renderQuiz(u); });
+</script>
+</body>
+</html>

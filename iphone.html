@@ -304,15 +304,11 @@
       </button>
     </div>
 
-    <!-- Configuración server -->
+    <!-- Configuración conexión (sin URL manual, se detecta automáticamente) -->
     <button class="cfg-toggle" onclick="toggleCfg()">
-      <span id="cfgArr">▸</span> Servidor &amp; conexión
+      <span id="cfgArr">▸</span> Configuración
     </button>
     <div class="cfg-panel" id="cfgPanel">
-      <div class="cfg-field">
-        <label>URL del servidor (WSS o HTTPS)</label>
-        <input id="srvUrl" type="url" placeholder="https://tuservidor.com" value=""/>
-      </div>
       <div class="cfg-field">
         <label>Protocolo</label>
         <select id="protoSel">
@@ -321,13 +317,8 @@
         </select>
       </div>
       <div class="cfg-btns">
-        <button class="cfg-btn" onclick="connect()">⚡ Conectar</button>
+        <button class="cfg-btn" onclick="connect()">⚡ Reconectar</button>
         <button class="cfg-btn sec" onclick="initCamera()">📷 Cámara</button>
-      </div>
-      <div style="font-size:10px;color:var(--fa);line-height:1.6">
-        Para acceso desde internet sin misma red WiFi:<br>
-        <code style="color:var(--ac)">npx localtunnel --port 3000</code> o<br>
-        <code style="color:var(--ac)">cloudflared tunnel --url http://localhost:3000</code>
       </div>
     </div>
 
@@ -458,7 +449,8 @@ function buildWsUrl(base) {
 }
 
 function connect() {
-  S.srvUrl  = document.getElementById('srvUrl').value.trim().replace(/\/$/, '');
+  // Siempre usa el mismo origen (funciona en Render automáticamente)
+  S.srvUrl   = location.origin;
   S.protocol = document.getElementById('protoSel').value;
 
   if(S.protocol === 'ws') connectWS();
@@ -565,7 +557,7 @@ async function sendWS(cap) {
 async function sendHTTP(cap) {
   // FormData es más lento → usamos JSON con base64
   // Pero si la imagen es grande, usamos FormData (mejor para binarios grandes)
-  const url = (S.srvUrl || 'http://localhost:3000') + '/upload/' + S.user;
+  const url = S.srvUrl + '/upload/' + S.user;
 
   if(cap.kb > 80) {
     // FormData + Blob: más eficiente para imágenes grandes
@@ -715,25 +707,17 @@ function toast(msg) {
 // ═══════════════════════════════════════════════════
 (function init() {
   const params = new URLSearchParams(location.search);
-  const srv = params.get('srv');
   const user = params.get('u');
-  if(srv) {
-    document.getElementById('srvUrl').value = decodeURIComponent(srv);
-    S.srvUrl = decodeURIComponent(srv);
-  }
+
   if(user && (user==='1'||user==='2')) {
     S.user = parseInt(user);
     document.getElementById('uLabel').textContent = 'U' + S.user;
     document.getElementById('userTag').textContent = 'U' + S.user;
   }
-  // Autoconectar si ya hay URL
-  if(S.srvUrl) {
-    setTimeout(() => connect(), 500);
-  } else {
-    // Abrir config automáticamente
-    document.getElementById('cfgPanel').classList.add('open');
-    document.getElementById('cfgArr').textContent = '▾';
-  }
+
+  // Siempre conecta al mismo origen automáticamente
+  S.srvUrl = location.origin;
+  setTimeout(() => connect(), 500);
 })();
 
 // Prevent zoom on double tap (iOS)

@@ -878,17 +878,19 @@ function buildQuizPrompt(u) {
 }
 
 function buildSolverPrompt() {
-  return `Eres un experto resolviendo exámenes de cualquier materia (incluye matemáticas, física, química, etc.).\n`+
-    `Observa la imagen y resuelve la pregunta visible, sin importar si tiene o no opciones de respuesta (A,B,C,D).\n`+
-    `Tu objetivo es dar la respuesta CORRECTA y FIABLE de forma directa.\n\n`+
-    `Reglas de formato para la respuesta:\n`+
-    `- Si la respuesta es una opción (A,B,C,D), indícala junto con el valor/resultado correspondiente.\n`+
-    `- Si involucra cálculos matemáticos o químicos (raíces, fracciones, exponentes, ecuaciones, fórmulas, etc.), `+
-    `escribe la notación matemática usando LaTeX envuelto en signos de dólar, por ejemplo: $\\sqrt{16}=4$, $\\frac{3}{4}$, $x^{2}$, $H_{2}O$.\n`+
-    `- La respuesta principal debe ser breve (máx 15 palabras o una expresión matemática), va en el campo "respuesta".\n`+
-    `- En "detalle" da una justificación breve (máx 20 palabras), sin repetir la respuesta completa.\n\n`+
-    `Responde ÚNICAMENTE con JSON válido (sin markdown, sin texto extra):\n`+
-    `{"respuesta":"<respuesta final, puede incluir notación LaTeX con $...$>","detalle":"<justificación breve>"}`;
+  return `Eres un experto resolviendo examenes de cualquier materia (matematicas, fisica, quimica, geografia, historia, biologia, etc.).\n`+
+    `Observa la imagen y determina cual opcion (A, B, C o D) es la CORRECTA.\n\n`+
+    `REGLA CRITICA ANTI-COINCIDENCIA PARCIAL:\n`+
+    `- Compara el SIGNIFICADO COMPLETO de cada opcion con la respuesta correcta.\n`+
+    `- Una opcion que comparte solo una palabra NO es correcta.\n`+
+    `- Ejemplo INCORRECTO: respuesta="Guatemala y Belice", opcion A="Estados Unidos y Guatemala" -> A es INCORRECTA aunque diga Guatemala.\n`+
+    `- Ejemplo CORRECTO: si la respuesta es "Roma" y una opcion dice "Ciudad de Roma", evalua si el significado es equivalente.\n\n`+
+    `Reglas de formato:\n`+
+    `- "letra": OBLIGATORIO. La letra exacta (A, B, C o D) de la opcion correcta.\n`+
+    `- "respuesta": breve (max 15 palabras). Si hay calculos usa LaTeX: $\\sqrt{16}=4$, $\\frac{3}{4}$.\n`+
+    `- "detalle": justificacion breve (max 20 palabras).\n\n`+
+    `Responde UNICAMENTE con JSON valido (sin markdown, sin texto extra):\n`+
+    `{"letra":"<A, B, C o D>","respuesta":"<respuesta final>","detalle":"<justificacion breve>"}`;
 }
 
 async function solveIndependent(u, frame) {
@@ -917,6 +919,11 @@ async function solveIndependent(u, frame) {
     const data = parseQuizJSON(reply);
     if(data && data.respuesta){
       st.solved = esc(data.respuesta) + (data.detalle ? `<span class="qs-detail">${esc(data.detalle)}</span>` : '');
+      // Si el solver devuelve la letra correcta, actualiza el answer con prioridad máxima
+      if(data.letra && 'ABCD'.includes(data.letra)){
+        st.answer = data.letra;
+        st.reason = data.detalle || st.reason;
+      }
     } else {
       st.solved = esc(reply || 'Sin respuesta.');
     }

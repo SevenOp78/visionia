@@ -24,6 +24,13 @@ const fs       = require('fs');
 // ── CONFIG ─────────────────────────────────────────
 const PORT      = process.env.PORT || 3000;
 const MAX_USERS = 2;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+if (!OPENAI_API_KEY) {
+  console.warn('⚠️  OPENAI_API_KEY no está configurada como variable de entorno');
+}
+
+// Modelos permitidos desde el monitor (whitelist para control de costos)
+const ALLOWED_MODELS = ['gpt-4o', 'gpt-4o-mini', 'gpt-5'];
 
 // ── APP ────────────────────────────────────────────
 const app    = express();
@@ -162,6 +169,52 @@ app.post('/upload/:user/form', upload.single('image'), async (req, res) => {
     broadcastToMonitors(u, frameData);
     res.end(JSON.stringify({ ok: true }));
   } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── PROXY OPENAI — /api/analyze ────────────────────
+// El navegador nunca ve la API key: el servidor la inyecta aquí.
+app.post('/api/analyze', async (req, res) => {
+  if (!OPENAI_API_KEY) {
+    return res.status(500).json({ error: 'Servidor sin OPENAI_API_KEY configurada' });
+  }
+
+  try {
+    const { model, prompt, imageUrl, maxTokens, detail } = req.body || {};
+
+    if (!imageUrl || !prompt) {
+      return res.status(400).json({ error: 'Faltan imageUrl o prompt' });
+    }
+
+    const safeModel = ALLOWED_MODELS.includes(model) ? model : 'gpt-4o-mini';
+    const safeMaxTokens = Math.min(parseInt(maxTokens) || 1024, 1024);
+
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + OPENAI_API_KEY
+      },
+      body: JSON.stringify({
+        model: safeModel,
+        max_completion_tokens: safeMaxTokens,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: imageUrl, detail: detail || 'auto' } },
+            { type: 'text', text: prompt }
+          ]
+        }]
+      })
+    });
+
+    const data = await r.json();
+    if (data.error) return res.status(400).json({ error: data.error.message });
+
+    res.json({ reply: data.choices?.[0]?.message?.content || '' });
+  } catch (e) {
+    console.error('[OPENAI PROXY] Error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });

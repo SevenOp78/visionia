@@ -573,7 +573,9 @@ footer{text-align:center;padding:1.25rem;border-top:1px solid var(--bd);font-siz
 // ══════════════════════════════════════════════════════
 //  CONFIG
 // ══════════════════════════════════════════════════════
-const OPENAI_KEY = "";
+// La API key de OpenAI YA NO vive aquí. El navegador llama a /api/analyze
+// en nuestro propio servidor (server.js), que es quien tiene la clave
+// guardada como variable de entorno (OPENAI_API_KEY) en Render.
 
 // Máximo frames guardados visualmente en la tira
 const MAX_STRIP_FRAMES = 12;
@@ -761,27 +763,20 @@ async function doAnalyze(u, frame) {
   }
 
   try {
-    const r = await fetch('https://api.openai.com/v1/chat/completions',{
+    const r = await fetch(srvUrl + '/api/analyze',{
       method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'Authorization':'Bearer '+OPENAI_KEY
-      },
+      headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({
         model,
-        max_completion_tokens: 1024,
-        messages:[{
-          role:'user',
-          content:[
-            { type:'image_url', image_url:{ url: frame.url, detail:'auto' } },
-            { type:'text', text: prompt }
-          ]
-        }]
+        prompt,
+        imageUrl: frame.url,
+        maxTokens: 1024,
+        detail: 'auto'
       })
     });
     const d = await r.json();
-    if(d.error) throw new Error(d.error.message);
-    const reply = d.choices?.[0]?.message?.content || 'Sin respuesta.';
+    if(d.error) throw new Error(d.error);
+    const reply = d.reply || 'Sin respuesta.';
 
     frame.status = 'done';
     frame.reply  = reply;
@@ -886,27 +881,20 @@ async function solveIndependent(u, frame) {
   const mime = frame.mime || 'image/jpeg';
 
   try {
-    const r = await fetch('https://api.openai.com/v1/chat/completions',{
+    const r = await fetch(srvUrl + '/api/analyze',{
       method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'Authorization':'Bearer '+OPENAI_KEY
-      },
+      headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({
         model: SOLVER_MODEL,
-        max_completion_tokens: 600,
-        messages:[{
-          role:'user',
-          content:[
-            { type:'image_url', image_url:{ url: frame.url, detail:'high' } },
-            { type:'text', text: buildSolverPrompt() }
-          ]
-        }]
+        prompt: buildSolverPrompt(),
+        imageUrl: frame.url,
+        maxTokens: 600,
+        detail: 'high'
       })
     });
     const d = await r.json();
-    if(d.error) throw new Error(d.error.message);
-    const reply = d.choices?.[0]?.message?.content || '';
+    if(d.error) throw new Error(d.error);
+    const reply = d.reply || '';
     const data = parseQuizJSON(reply);
     if(data && data.respuesta){
       st.solved = esc(data.respuesta) + (data.detalle ? `<span class="qs-detail">${esc(data.detalle)}</span>` : '');

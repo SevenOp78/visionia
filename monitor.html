@@ -298,6 +298,24 @@ footer{text-align:center;padding:1.25rem;border-top:1px solid var(--bd);font-siz
   <div class="box">
     <p class="bt">Servidor</p>
     <div class="sr"><span class="srd" id="srd"></span><span id="srt">Conectando...</span></div>
+    <div class="field" style="margin-top:.75rem">
+      <label>Modelo solver (quiz)</label>
+      <select id="solverModel" onchange="SOLVER_MODEL=this.value">
+        <optgroup label="Razonamiento — mejor para exámenes">
+          <option value="o4-mini" selected>o4-mini — Recomendado 🧠 (99.5% AIME)</option>
+          <option value="o3">o3 — Máxima precisión</option>
+          <option value="o3-mini">o3-mini</option>
+        </optgroup>
+        <optgroup label="GPT-5">
+          <option value="gpt-5">gpt-5 (anterior default)</option>
+          <option value="gpt-5-mini">gpt-5-mini</option>
+        </optgroup>
+        <optgroup label="GPT-4.1">
+          <option value="gpt-4.1">gpt-4.1</option>
+          <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+        </optgroup>
+      </select>
+    </div>
     <div class="cam-links" id="camLinks" style="display:none">
       <button class="cam-btn" onclick="openCam(1)">📱 Cámara U1</button>
       <button class="cam-btn" onclick="openCam(2)">📱 Cámara U2</button>
@@ -573,9 +591,8 @@ footer{text-align:center;padding:1.25rem;border-top:1px solid var(--bd);font-siz
 // Máximo frames guardados visualmente en la tira
 const MAX_STRIP_FRAMES = 12;
 
-// Modelo potente fijo usado para resolver la pregunta de forma independiente
-// (no depende del modelo elegido por el usuario)
-const SOLVER_MODEL = 'gpt-5';
+// Modelo para resolver el quiz — configurable desde el monitor
+let SOLVER_MODEL = 'o4-mini';
 
 // ══════════════════════════════════════════════════════
 //  ESTADO

@@ -30,7 +30,16 @@ if (!OPENAI_API_KEY) {
 }
 
 // Modelos permitidos desde el monitor (whitelist para control de costos)
-const ALLOWED_MODELS = ['gpt-4o', 'gpt-4o-mini', 'gpt-5'];
+const ALLOWED_MODELS = [
+  // GPT-5
+  'gpt-5', 'gpt-5-mini', 'gpt-5-nano',
+  // GPT-4.1
+  'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano',
+  // GPT-4o
+  'gpt-4o', 'gpt-4o-mini', 'chatgpt-4o-latest',
+  // Razonamiento (o-series) — mejores para quizzes/exámenes
+  'o4-mini', 'o3', 'o3-mini', 'o1', 'o1-mini', 'o1-pro',
+];
 
 // ── APP ────────────────────────────────────────────
 const app    = express();
@@ -187,7 +196,7 @@ app.post('/api/analyze', async (req, res) => {
       return res.status(400).json({ error: 'Faltan imageUrl o prompt' });
     }
 
-    const safeModel = ALLOWED_MODELS.includes(model) ? model : 'gpt-4o-mini';
+    const safeModel = ALLOWED_MODELS.includes(model) ? model : 'gpt-4.1-mini';
     const safeMaxTokens = Math.min(parseInt(maxTokens) || 1024, 1024);
 
     const r = await fetch('https://api.openai.com/v1/chat/completions', {

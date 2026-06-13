@@ -297,14 +297,7 @@ footer{text-align:center;padding:1.25rem;border-top:1px solid var(--bd);font-siz
   <!-- Servidor -->
   <div class="box">
     <p class="bt">Servidor</p>
-    <div class="field" style="margin-bottom:.5rem">
-      <label>URL del servidor</label>
-      <div class="srv-row">
-        <input id="srvUrl" value="http://localhost:3000" placeholder="https://abc.loca.lt"/>
-        <button class="sbtn" onclick="connectSrv()">Conectar</button>
-      </div>
-    </div>
-    <div class="sr"><span class="srd" id="srd"></span><span id="srt">Ingresa la URL del servidor</span></div>
+    <div class="sr"><span class="srd" id="srd"></span><span id="srt">Conectando...</span></div>
     <div class="cam-links" id="camLinks" style="display:none">
       <button class="cam-btn" onclick="openCam(1)">📱 Cámara U1</button>
       <button class="cam-btn" onclick="openCam(2)">📱 Cámara U2</button>
@@ -597,15 +590,15 @@ const U = {
       frames:[]
   }
 };
-let srvUrl = 'http://localhost:3000';
 let activeLeft = 1;
 let view = 'u1';
 
 // ══════════════════════════════════════════════════════
-//  SERVIDOR
+//  SERVIDOR — mismo origen, auto-conecta al cargar
 // ══════════════════════════════════════════════════════
+const srvUrl = location.origin;
+
 function connectSrv() {
-  srvUrl = document.getElementById('srvUrl').value.trim().replace(/\/$/,'');
   fetch(srvUrl+'/status',{headers:{'ngrok-skip-browser-warning':'1'}})
     .then(r=>r.json())
     .then(d=>{
@@ -1054,6 +1047,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 
 // Init
 [1,2].forEach(u=>{ updSt(u); renderQuiz(u); });
+connectSrv(); // conecta automáticamente al cargar la página
 </script>
 </body>
 </html>

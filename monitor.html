@@ -948,26 +948,41 @@ function mergeQuiz(u, data) {
   const st = U[u].quiz;
   const incoming = (data.question||'').trim();
   const current  = (st.question||'').trim();
-  const isNew = incoming && current && !incoming.includes(current) && !current.includes(incoming);
+
+  // Es pregunta nueva SOLO si el qnum cambio explicitamente, o si el texto es completamente diferente
+  // y NO hay qnum previo (primera pregunta). Asi evitamos resetear cuando llegan mas opciones del mismo frame.
+  const qnumChanged = data.qnum != null && st.qnum != null && data.qnum !== st.qnum;
+  const textTotallyDifferent = incoming && current
+    && !incoming.includes(current.slice(0,20))
+    && !current.includes(incoming.slice(0,20));
+  const isNew = qnumChanged || (textTotallyDifferent && data.qnum != null && data.qnum !== st.qnum);
 
   if(isNew){
-    st.qnum = (data.qnum!=null) ? data.qnum : (st.qnum!=null ? st.qnum+1 : 1);
+    // Nueva pregunta confirmada: reset completo
+    st.qnum = data.qnum;
     st.question = incoming;
     st.options={A:'',B:'',C:'',D:''}; st.answer=null; st.reason='';
     st.solved=''; st.solving=false;
   } else {
+    // Misma pregunta: acumular texto e opciones, NO resetear solved/answer
     if(!current && incoming){
       st.question = incoming;
       if(data.qnum!=null) st.qnum = data.qnum;
-    } else if(incoming && !current.includes(incoming)){
-      st.question = (current?current+' ':'')+incoming;
+    } else if(incoming && current && !current.includes(incoming.slice(0,15))){
+      st.question = (current+' '+incoming).trim();
     }
     if(st.qnum==null && data.qnum!=null) st.qnum = data.qnum;
+
+    // Acumular opciones
+    ['A','B','C','D'].forEach(k=>{ if(data.options?.[k]) st.options[k]=data.options[k]; });
+
+    // Solo actualizar answer del modelo rapido si el solver NO ha dado su respuesta todavia
+    if(!st.solved){
+      if(data.answer && 'ABCD'.includes(data.answer)){ st.answer=data.answer; st.reason=data.reason||''; }
+      else if(data.reason){ st.reason=data.reason; }
+    }
   }
 
-  ['A','B','C','D'].forEach(k=>{ if(data.options?.[k]) st.options[k]=data.options[k]; });
-  if(data.answer && 'ABCD'.includes(data.answer)){ st.answer=data.answer; st.reason=data.reason||''; }
-  else if(data.reason){ st.reason=data.reason; }
   renderQuiz(u);
   return isNew || (!current && incoming);
 }

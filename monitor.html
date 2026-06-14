@@ -664,11 +664,11 @@ let SOLVER_MODEL = 'o4-mini';
 // ══════════════════════════════════════════════════════
 const U = {
   1:{ sse:null, rcv:0, ana:0, ans:'', lastTs:0, frameSeq:0,
-      quizMode:true, quiz:{qnum:null,question:'',options:{A:'',B:'',C:'',D:''},answer:null,reason:'',solved:'',solving:false},
+      quizMode:true, quiz:{qnum:null,question:'',options:{A:'',B:'',C:'',D:''},answer:null,reason:'',solved:'',solving:false,readingContext:'',lastFrameUrl:''},
       frames:[] // [{id,url,mime,ts,status:'pending'|'processing'|'done'|'err',reply}]
   },
   2:{ sse:null, rcv:0, ana:0, ans:'', lastTs:0, frameSeq:0,
-      quizMode:true, quiz:{qnum:null,question:'',options:{A:'',B:'',C:'',D:''},answer:null,reason:'',solved:'',solving:false},
+      quizMode:true, quiz:{qnum:null,question:'',options:{A:'',B:'',C:'',D:''},answer:null,reason:'',solved:'',solving:false,readingContext:'',lastFrameUrl:''},
       frames:[]
   }
 };
@@ -911,7 +911,7 @@ async function doAnalyze(u, frame) {
         prompt,
         imageUrl: frame.url,
         maxTokens: 1024,
-        detail: 'auto'
+        detail: 'high'
       })
     });
     const d = await r.json();
@@ -937,6 +937,8 @@ async function doAnalyze(u, frame) {
     if(U[u].quizMode){
       const data = parseQuizJSON(reply);
       if(data){
+        // Guardar siempre el frame más reciente para que el solver lo use
+        U[u].quiz.lastFrameUrl = frame.url;
         const isNewQ = mergeQuiz(u, data);
         if(isNewQ) solveIndependent(u, frame);
       }
@@ -1026,7 +1028,7 @@ function toggleQuiz(u) {
 }
 
 function resetQuiz(u) {
-  U[u].quiz = {qnum:null,question:'',options:{A:'',B:'',C:'',D:''},answer:null,reason:'',solved:'',solving:false};
+  U[u].quiz = {qnum:null,question:'',options:{A:'',B:'',C:'',D:''},answer:null,reason:'',solved:'',solving:false,readingContext:'',lastFrameUrl:''};
   stopQTimer(u);
   renderQuiz(u);
 }
@@ -1034,62 +1036,86 @@ function resetQuiz(u) {
 function buildQuizPrompt(u) {
   const st = U[u].quiz;
   let ctx = '';
-  if(st.qnum!=null){
-    ctx = `Contexto acumulado PREGUNTA ${st.qnum}:\n`+
+  if(st.qnum != null){
+    ctx = `CONTEXTO ACUMULADO (pregunta ${st.qnum}):\n`+
       `Pregunta: "${st.question||'(sin texto)'}"\n`+
-      ['A','B','C','D'].map(k=>`${k}: "${st.options[k]||'(sin texto)'}"`).join('\n')+'\n\n';
+      ['A','B','C','D'].map(k=>`${k}: "${st.options[k]||'(sin texto)'}"`).join('\n')+'\n';
+    if(st.readingContext){
+      ctx += `Texto de comprension lectora acumulado: "${st.readingContext}"\n`;
+    }
+    ctx += '\n';
   }
-  return `Estas extrayendo datos de un cuestionario de opcion multiple a partir de capturas fragmentadas.\n\n${ctx}`+
-    `Analiza la imagen y devuelve UNICAMENTE JSON valido (sin markdown, sin texto extra):\n`+
-    `{"qnum":<numero entero SOLO si ves un numero de pregunta NUEVO diferente al contexto, si no null>,`+
-    `"question":"<texto de la pregunta visible, vacio si no hay>",`+
-    `"options":{"A":"<texto inciso A si es visible, vacio si no>","B":"<texto inciso B>","C":"<texto inciso C>","D":"<texto inciso D>"}}`+
-    `\nIMPORTANTE: NO incluyas campo "answer". Solo extrae texto visible. Si no ves numero de pregunta nuevo, qnum debe ser null.`;
+  return `Eres un extractor de datos de examenes. La imagen puede contener UNA pregunta completa con sus opciones en una sola captura (pregunta + opciones A B C D juntas), O puede ser un fragmento de un texto largo de comprension lectora.\n\n`+
+    `${ctx}`+
+    `REGLAS DE EXTRACCION:\n`+
+    `1. Si ves un numero de pregunta NUEVO (diferente al contexto), extrae ese numero en "qnum".\n`+
+    `2. Extrae el enunciado completo de la pregunta en "question". Incluye graficas, formulas o notacion matematica descritas textualmente si no puedes extraer el simbolo exacto.\n`+
+    `3. Extrae las opciones A B C D completas con todo su texto.\n`+
+    `4. Si la imagen contiene un TEXTO LARGO de lectura (parrafo/poema/articulo) sin pregunta visible, ponlo en "readingContext" y deja question vacio.\n`+
+    `5. Si no ves numero de pregunta nuevo, "qnum" debe ser null.\n`+
+    `6. Para formulas matematicas, escribe el texto exacto que ves aunque use simbolos especiales.\n\n`+
+    `Devuelve UNICAMENTE JSON valido (sin markdown, sin texto extra):\n`+
+    `{"qnum":<numero entero o null>,"question":"<enunciado completo>","options":{"A":"<texto A>","B":"<texto B>","C":"<texto C>","D":"<texto D>"},"readingContext":"<texto de lectura si aplica, sino vacio>"}`;
 }
 
 function buildSolverPrompt(u) {
   const st = U[u].quiz;
   const hasOptions = ['A','B','C','D'].some(k => st.options[k]);
+  const hasReading = st.readingContext && st.readingContext.trim().length > 0;
+
   let ctx = '';
-  if(st.question) ctx += `Pregunta acumulada: "${st.question}"\n`;
+  if(hasReading){
+    ctx += `TEXTO DE LECTURA (puede continuar en la imagen):\n"${st.readingContext}"\n\n`;
+  }
+  if(st.question) ctx += `PREGUNTA: "${st.question}"\n`;
   if(hasOptions){
-    ctx += 'Opciones acumuladas:\n';
+    ctx += 'OPCIONES:\n';
     ['A','B','C','D'].forEach(k=>{ if(st.options[k]) ctx += `${k}: "${st.options[k]}"\n`; });
   }
-  if(st.solved) ctx += `\nRespuesta previa del solver: ${st.solved.replace(/<[^>]+>/g,'')}\n`;
-  return `Eres un experto resolviendo examenes de cualquier materia (matematicas, fisica, quimica, geografia, historia, biologia, etc.).\n`+
-    `Observa la imagen y usa el contexto acumulado para dar la respuesta CORRECTA y FIABLE.\n\n`+
+  if(st.solved) ctx += `\nRespuesta previa (actualizar si la imagen aporta mas informacion): ${st.solved.replace(/<[^>]+>/g,'')}\n`;
+
+  return `Eres un experto en todas las areas academicas. Tu objetivo es dar la respuesta CORRECTA Y VERIFICADA.\n\n`+
     `${ctx}\n`+
-    `REGLAS CRITICAS:\n`+
-    `1. Compara el SIGNIFICADO COMPLETO de cada opcion, no palabras sueltas.\n`+
-    `   Ejemplo: si la respuesta es "Guatemala y Belice", la opcion "Estados Unidos y Guatemala" es INCORRECTA aunque diga "Guatemala".\n`+
-    `2. Acepta equivalencias semanticas y matematicas.\n`+
-    `   Ejemplo: si la respuesta es x=10, la opcion "(35+15)/5" es CORRECTA porque da 10.\n`+
-    `   Ejemplo: si la respuesta es "Roma", la opcion "Ciudad de Roma" puede ser CORRECTA si es equivalente.\n`+
-    `3. En matematicas verifica el calculo completo antes de elegir la letra.\n\n`+
+    `INSTRUCCIONES POR TIPO DE PREGUNTA:\n\n`+
+    `MATEMATICAS / FISICA / QUIMICA:\n`+
+    `- Observa la imagen con atencion: puede haber graficas, tablas, diagramas o notacion que no aparece en el texto extraido.\n`+
+    `- Realiza el calculo completo paso a paso antes de elegir.\n`+
+    `- Verifica que la opcion elegida coincida con tu resultado exacto (no aproximado).\n`+
+    `- Para integrales, derivadas, limites: evalua el procedimiento completo.\n`+
+    `- Acepta equivalencias: si tu resultado es 10 y la opcion dice "(35+15)/5", son iguales.\n\n`+
+    `COMPRENSION LECTORA / ESPAÑOL / LITERATURA:\n`+
+    `- Lee el texto acumulado y TAMBIEN observa la imagen: puede contener continuacion del texto.\n`+
+    `- La respuesta correcta se basa en lo que el texto DICE EXPLICITAMENTE o implica claramente.\n`+
+    `- Descarta opciones que parecen verdaderas pero no estan respaldadas por el texto.\n`+
+    `- Para tipo de texto, estructura, intension del autor: analiza el fragmento completo disponible.\n\n`+
+    `CIENCIAS NATURALES / GEOGRAFIA / HISTORIA:\n`+
+    `- Observa la imagen: puede haber mapas, diagramas, lineas del tiempo o graficas relevantes.\n`+
+    `- Compara el SIGNIFICADO COMPLETO de cada opcion, no palabras sueltas.\n`+
+    `- Ejemplo: "Guatemala y Belice" NO es lo mismo que "Estados Unidos y Guatemala".\n\n`+
+    `REGLA FINAL: Si la imagen contiene informacion visual (grafica, formula, diagrama) que aporta datos para resolver, usala aunque no este en el texto extraido.\n\n`+
     `Responde UNICAMENTE con JSON valido (sin markdown, sin texto extra):\n`+
-    `{"letra":"<A, B, C o D — la opcion correcta, o null si aun no hay opciones visibles>",`+
-    `"respuesta":"<respuesta directa, puede incluir LaTeX con $...$>",`+
-    `"detalle":"<justificacion breve max 20 palabras>"}`;
+    `{"letra":"<A, B, C o D, o null si aun no hay suficiente informacion>","respuesta":"<respuesta directa con LaTeX si aplica, ej: $x=\\\\frac{3}{2}$>","detalle":"<razonamiento conciso max 25 palabras>"}`;
 }
 
 async function solveIndependent(u, frame) {
   const st = U[u].quiz;
-  // Guardar el qnum en el momento de lanzar el solver
-  // para descartar la respuesta si ya cambio la pregunta cuando llegue
   const solverQnum = st.qnum;
   st.solving = true;
   renderQuiz(u);
 
   try {
+    // Usar siempre el frame más reciente disponible (puede tener la gráfica)
+    // Si hay un frame más nuevo que el disparador, usarlo
+    const latestUrl = (U[u].frames.length > 0 && U[u].frames[0].url) ? U[u].frames[0].url : frame.url;
+
     const r = await fetch(srvUrl + '/api/analyze',{
       method:'POST',
       headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({
         model: SOLVER_MODEL,
         prompt: buildSolverPrompt(u),
-        imageUrl: frame.url,
-        maxTokens: 800,
+        imageUrl: latestUrl,
+        maxTokens: 1000,
         detail: 'high'
       })
     });
@@ -1149,6 +1175,7 @@ function mergeQuiz(u, data) {
     st.reason   = '';
     st.solved   = '';
     st.solving  = false;
+    st.readingContext = ''; // resetear contexto de lectura al llegar pregunta nueva
     ['A','B','C','D'].forEach(k=>{ if(data.options?.[k]) st.options[k]=data.options[k]; });
     renderQuiz(u);
     // ── Arrancar temporizador de 30s ──
@@ -1157,8 +1184,6 @@ function mergeQuiz(u, data) {
   }
 
   // ── Mismo contexto: acumular sin resetear ──────────────────────────────
-  // Si viene un qnum nuevo pero sin texto de pregunta, actualizar solo el qnum
-  // para que el proximo frame con texto sea reconocido correctamente
   if(hasNewQnum && !hasNewText && st.qnum == null){
     st.qnum = incomingQnum;
   }
@@ -1167,6 +1192,16 @@ function mergeQuiz(u, data) {
   const current = st.question.trim();
   if(incomingQ && !current.includes(incomingQ.slice(0,20))){
     st.question = current ? (current+' '+incomingQ).trim() : incomingQ;
+  }
+
+  // Acumular texto de comprension lectora (puede venir en varios frames)
+  const incomingReading = (data.readingContext||'').trim();
+  let newReading = false;
+  if(incomingReading && !(st.readingContext||'').includes(incomingReading.slice(0,30))){
+    st.readingContext = st.readingContext
+      ? (st.readingContext + ' ' + incomingReading).trim()
+      : incomingReading;
+    newReading = true;
   }
 
   // Acumular opciones nuevas (nunca pisar una ya guardada)
@@ -1180,8 +1215,8 @@ function mergeQuiz(u, data) {
 
   renderQuiz(u);
 
-  // Si llegaron opciones nuevas y el solver aun no tiene letra, relanzar
-  const needsSolve = newOptions && !st.answer && !st.solving;
+  // Relanzar solver si: opciones nuevas sin letra, O texto de lectura nuevo sin letra aún
+  const needsSolve = (newOptions || newReading) && !st.answer && !st.solving;
   return needsSolve;
 }
 

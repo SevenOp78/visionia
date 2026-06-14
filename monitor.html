@@ -264,6 +264,30 @@ footer{text-align:center;padding:1.25rem;border-top:1px solid var(--bd);font-siz
 .quiz-bignum{font-family:'Instrument Serif',serif;font-size:22px;font-weight:700;color:var(--tx)}
 .quiz-box.compact .quiz-bignum{font-size:16px}
 
+/* ── TEMPORIZADOR DE PREGUNTA ── */
+.quiz-timer{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:.5rem;
+}
+.qtimer-ring{flex-shrink:0;transform:rotate(-90deg)}
+.qtimer-track{fill:none;stroke:rgba(255,255,255,.08);stroke-width:4}
+.qtimer-arc{
+  fill:none;stroke:var(--ac);stroke-width:4;stroke-linecap:round;
+  stroke-dasharray:100.5;stroke-dashoffset:0;
+  transition:stroke-dashoffset .9s linear,stroke .4s;
+}
+.qtimer-arc.urgent{stroke:var(--or)}
+.qtimer-arc.critical{stroke:var(--rd)}
+.qtimer-val{
+  font-size:22px;font-weight:700;color:var(--tx);
+  font-variant-numeric:tabular-nums;min-width:28px;
+}
+.qtimer-val.urgent{color:var(--or)}
+.qtimer-val.critical{color:var(--rd)}
+.qtimer-lbl{font-size:10px;color:var(--fa);line-height:1.3}
+.quiz-box.compact .quiz-timer{margin-bottom:.3rem}
+.quiz-box.compact .qtimer-val{font-size:16px}
+
 /* ── RESPUESTA RESUELTA POR IA POTENTE ── */
 .quiz-solved{
   font-size:21px;font-weight:700;line-height:1.4;color:var(--tx);
@@ -469,6 +493,16 @@ footer{text-align:center;padding:1.25rem;border-top:1px solid var(--bd);font-siz
       <div class="quiz-box" id="quizbox1">
         <div class="quiz-ans"><span id="qzletter1">?</span></div>
         <div class="quiz-body">
+          <div class="quiz-timer" id="qtimer1" style="display:none">
+            <svg class="qtimer-ring" width="32" height="32" viewBox="0 0 32 32">
+              <circle class="qtimer-track" cx="16" cy="16" r="14"/>
+              <circle class="qtimer-arc" id="qtarc1" cx="16" cy="16" r="14"/>
+            </svg>
+            <div>
+              <div class="qtimer-val" id="qtval1">30</div>
+              <div class="qtimer-lbl">seg<br>restantes</div>
+            </div>
+          </div>
           <div class="quiz-num"><span class="quiz-bignum" id="qznum1">Pregunta —</span><button class="quiz-reset" onclick="resetQuiz(1)">🔄</button></div>
           <div class="quiz-solved" id="qzsolved1"><span class="qs-lbl">Respuesta IA</span>—</div>
           <div class="quiz-q" id="qztext1">Esperando pregunta...</div>
@@ -508,6 +542,16 @@ footer{text-align:center;padding:1.25rem;border-top:1px solid var(--bd);font-siz
       <div class="quiz-box" id="quizbox2">
         <div class="quiz-ans"><span id="qzletter2">?</span></div>
         <div class="quiz-body">
+          <div class="quiz-timer" id="qtimer2" style="display:none">
+            <svg class="qtimer-ring" width="32" height="32" viewBox="0 0 32 32">
+              <circle class="qtimer-track" cx="16" cy="16" r="14"/>
+              <circle class="qtimer-arc" id="qtarc2" cx="16" cy="16" r="14"/>
+            </svg>
+            <div>
+              <div class="qtimer-val" id="qtval2">30</div>
+              <div class="qtimer-lbl">seg<br>restantes</div>
+            </div>
+          </div>
           <div class="quiz-num"><span class="quiz-bignum" id="qznum2">Pregunta —</span><button class="quiz-reset" onclick="resetQuiz(2)">🔄</button></div>
           <div class="quiz-solved" id="qzsolved2"><span class="qs-lbl">Respuesta IA</span>—</div>
           <div class="quiz-q" id="qztext2">Esperando pregunta...</div>
@@ -914,6 +958,56 @@ async function doAnalyze(u, frame) {
 }
 
 // ══════════════════════════════════════════════════════
+//  TEMPORIZADOR POR PREGUNTA (30s)
+// ══════════════════════════════════════════════════════
+const QTIMER_DURATION = 30;
+const QTIMER_CIRCUMFERENCE = 2 * Math.PI * 14; // ~87.96
+const qTimers = {
+  1: { value: QTIMER_DURATION, interval: null, active: false },
+  2: { value: QTIMER_DURATION, interval: null, active: false },
+};
+
+function startQTimer(u) {
+  const t = qTimers[u];
+  if(t.interval) clearInterval(t.interval);
+  t.value = QTIMER_DURATION;
+  t.active = true;
+  const wrap = document.getElementById('qtimer'+u);
+  if(wrap) wrap.style.display = 'flex';
+  updateQTimerUI(u);
+  t.interval = setInterval(() => {
+    t.value--;
+    updateQTimerUI(u);
+    if(t.value <= 0) stopQTimer(u);
+  }, 1000);
+}
+
+function stopQTimer(u) {
+  const t = qTimers[u];
+  if(t.interval) clearInterval(t.interval);
+  t.interval = null;
+  t.active = false;
+  const wrap = document.getElementById('qtimer'+u);
+  if(wrap) wrap.style.display = 'none';
+}
+
+function updateQTimerUI(u) {
+  const t = qTimers[u];
+  const arc = document.getElementById('qtarc'+u);
+  const val = document.getElementById('qtval'+u);
+  if(!arc || !val) return;
+  const fraction = t.value / QTIMER_DURATION;
+  const offset = QTIMER_CIRCUMFERENCE * (1 - fraction);
+  arc.style.strokeDasharray = QTIMER_CIRCUMFERENCE;
+  arc.style.strokeDashoffset = offset;
+  val.textContent = t.value;
+  arc.classList.remove('urgent','critical');
+  val.classList.remove('urgent','critical');
+  if(t.value <= 5) { arc.classList.add('critical'); val.classList.add('critical'); }
+  else if(t.value <= 10) { arc.classList.add('urgent'); val.classList.add('urgent'); }
+}
+
+// ══════════════════════════════════════════════════════
 //  QUIZ
 // ══════════════════════════════════════════════════════
 function toggleQuiz(u) {
@@ -933,6 +1027,7 @@ function toggleQuiz(u) {
 
 function resetQuiz(u) {
   U[u].quiz = {qnum:null,question:'',options:{A:'',B:'',C:'',D:''},answer:null,reason:'',solved:'',solving:false};
+  stopQTimer(u);
   renderQuiz(u);
 }
 
@@ -1054,10 +1149,11 @@ function mergeQuiz(u, data) {
     st.reason   = '';
     st.solved   = '';
     st.solving  = false;
-    // Acumular opciones que vengan en este mismo frame
     ['A','B','C','D'].forEach(k=>{ if(data.options?.[k]) st.options[k]=data.options[k]; });
     renderQuiz(u);
-    return true; // pregunta nueva → lanzar solver
+    // ── Arrancar temporizador de 30s ──
+    startQTimer(u);
+    return true;
   }
 
   // ── Mismo contexto: acumular sin resetear ──────────────────────────────

@@ -52,12 +52,11 @@
     }
     video{
       width:100%;height:100%;object-fit:cover;
-      transform:scaleX(-1); /* mirror selfie cam */
+      transform:scaleX(-1);
     }
     video.rear{transform:none}
     canvas#snap{display:none}
 
-    /* Overlay: captura activa */
     .overlay{
       position:absolute;inset:0;pointer-events:none;
       display:flex;flex-direction:column;justify-content:space-between;
@@ -66,7 +65,6 @@
     .overlay-top{display:flex;justify-content:space-between;align-items:flex-start}
     .overlay-bot{display:flex;justify-content:center}
 
-    /* Badges flotantes */
     .badge{
       background:rgba(0,0,0,.65);backdrop-filter:blur(8px);
       border:1px solid rgba(255,255,255,.12);border-radius:20px;
@@ -76,7 +74,6 @@
     .fps-num{font-weight:600;color:var(--gn)}
     .size-num{color:var(--mu)}
 
-    /* Placeholder (sin cámara) */
     .placeholder{
       position:absolute;inset:0;display:flex;flex-direction:column;
       align-items:center;justify-content:center;gap:10px;
@@ -85,7 +82,6 @@
     .placeholder .ico{font-size:48px}
     .placeholder p{font-size:14px;line-height:1.6}
 
-    /* Thumbnail de última enviada */
     .thumb-wrap{
       position:absolute;bottom:16px;right:16px;
       width:60px;height:45px;border-radius:8px;overflow:hidden;
@@ -93,104 +89,191 @@
     }
     .thumb-wrap img{width:100%;height:100%;object-fit:cover}
 
-    /* Flash de captura */
     .flash{
       position:absolute;inset:0;background:#fff;opacity:0;
       pointer-events:none;transition:opacity .05s;border-radius:0;
     }
     .flash.go{opacity:.35}
 
+    /* ── TEMPORIZADOR OVERLAY ── */
+    .timer-overlay{
+      position:absolute;inset:0;pointer-events:none;
+      display:flex;align-items:center;justify-content:center;
+      z-index:10;
+    }
+    .timer-ring-wrap{
+      position:relative;width:140px;height:140px;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .timer-svg{position:absolute;inset:0;transform:rotate(-90deg)}
+    .timer-track{fill:none;stroke:rgba(255,255,255,.12);stroke-width:6}
+    .timer-arc{
+      fill:none;stroke:var(--ac);stroke-width:6;
+      stroke-linecap:round;
+      stroke-dasharray:408;
+      stroke-dashoffset:0;
+      transition:stroke-dashoffset .9s linear, stroke .4s;
+    }
+    .timer-arc.urgent{stroke:var(--or)}
+    .timer-arc.critical{stroke:var(--rd)}
+    .timer-num{
+      font-size:48px;font-weight:700;color:#fff;
+      text-shadow:0 2px 12px rgba(0,0,0,.8);
+      font-variant-numeric:tabular-nums;line-height:1;
+      position:relative;z-index:1;
+    }
+    .timer-num.urgent{color:var(--or)}
+    .timer-num.critical{color:var(--rd)}
+    .timer-label{
+      position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);
+      font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;
+      color:rgba(255,255,255,.5);white-space:nowrap;
+    }
+    .timer-overlay.hidden{display:none}
+
     /* ── CONTROLS ── */
     .controls{
       flex-shrink:0;
-      background:rgba(14,14,16,.96);
+      background:rgba(14,14,16,.97);
       backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
       border-top:1px solid var(--bd);
       padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));
     }
 
-    /* Fila principal: botón + info */
-    .ctrl-main{display:flex;align-items:center;gap:14px;margin-bottom:14px}
-    .btn-shoot{
-      width:68px;height:68px;border-radius:50%;
-      background:var(--ac);border:3px solid rgba(124,106,247,.5);
-      box-shadow:0 0 0 4px var(--acl);
-      display:flex;align-items:center;justify-content:center;
-      font-size:26px;cursor:pointer;flex-shrink:0;
-      transition:transform .08s,box-shadow .08s;
-      -webkit-user-select:none;user-select:none;
+    /* ── INTERVALO (más notorio) ── */
+    .interval-card{
+      background:var(--s2);
+      border:1.5px solid rgba(124,106,247,.35);
+      border-radius:var(--r);
+      padding:12px 14px;
+      margin-bottom:14px;
     }
-    .btn-shoot:active{transform:scale(.93);box-shadow:0 0 0 2px var(--acl)}
-    .btn-shoot.sending{background:var(--or)}
-    .btn-shoot.error{background:var(--rd)}
+    .interval-header{
+      display:flex;align-items:center;justify-content:space-between;
+      margin-bottom:10px;
+    }
+    .interval-title{
+      display:flex;align-items:center;gap:7px;
+      font-size:12px;font-weight:600;color:var(--tx);
+    }
+    .interval-title .ico{font-size:16px}
+    .interval-badge{
+      font-size:20px;font-weight:700;color:var(--ac);
+      font-variant-numeric:tabular-nums;
+      background:var(--acl);border:1px solid rgba(124,106,247,.3);
+      border-radius:8px;padding:2px 10px;
+      min-width:68px;text-align:center;
+      line-height:1.3;
+    }
+    input[type=range]{
+      width:100%;-webkit-appearance:none;appearance:none;
+      height:5px;background:var(--s);border-radius:4px;outline:none;
+      border:1px solid var(--bd);
+    }
+    input[type=range]::-webkit-slider-thumb{
+      -webkit-appearance:none;width:26px;height:26px;border-radius:50%;
+      background:var(--ac);border:3px solid rgba(124,106,247,.6);
+      box-shadow:0 0 0 4px rgba(124,106,247,.15);
+      cursor:pointer;
+    }
+    .interval-ticks{
+      display:flex;justify-content:space-between;
+      margin-top:5px;padding:0 2px;
+    }
+    .interval-ticks span{
+      font-size:9px;color:var(--fa);
+    }
+
+    /* ── BOTÓN SHOOT (GRANDE) ── */
+    .ctrl-main{display:flex;align-items:center;gap:16px;margin-bottom:14px}
+    .btn-shoot-wrap{position:relative;flex-shrink:0}
+    .btn-shoot{
+      width:88px;height:88px;border-radius:50%;
+      background:var(--ac);
+      border:4px solid rgba(124,106,247,.45);
+      box-shadow:
+        0 0 0 8px rgba(124,106,247,.12),
+        0 4px 24px rgba(124,106,247,.45);
+      display:flex;align-items:center;justify-content:center;
+      font-size:36px;cursor:pointer;
+      transition:transform .08s,box-shadow .08s,background .15s;
+      -webkit-user-select:none;user-select:none;
+      position:relative;
+    }
+    .btn-shoot:active{
+      transform:scale(.91);
+      box-shadow:0 0 0 4px rgba(124,106,247,.1),0 2px 8px rgba(124,106,247,.3);
+    }
+    .btn-shoot.sending{background:var(--or);box-shadow:0 0 0 8px rgba(245,166,35,.12),0 4px 24px rgba(245,166,35,.4)}
+    .btn-shoot.error{background:var(--rd);box-shadow:0 0 0 8px rgba(246,102,102,.12),0 4px 24px rgba(246,102,102,.4)}
+    .btn-shoot.auto{
+      background:var(--gn);border-color:rgba(62,207,142,.4);
+      animation:breathe 2s infinite;
+      box-shadow:0 0 0 8px rgba(62,207,142,.12),0 4px 24px rgba(62,207,142,.4);
+    }
+    @keyframes breathe{0%,100%{box-shadow:0 0 0 8px rgba(62,207,142,.12),0 4px 24px rgba(62,207,142,.3)}50%{box-shadow:0 0 0 16px rgba(62,207,142,.05),0 4px 32px rgba(62,207,142,.5)}}
+
+    /* Etiqueta debajo del botón */
+    .btn-label{
+      position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);
+      font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;
+      color:var(--mu);white-space:nowrap;
+    }
 
     .info-col{flex:1;min-width:0}
-    .info-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
-    .mode-label{font-size:12px;font-weight:600;color:var(--tx)}
+    .info-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+    .mode-label{font-size:13px;font-weight:700;color:var(--tx)}
     .user-tag{font-size:11px;color:var(--ac);background:var(--acl);border:1px solid rgba(124,106,247,.3);padding:2px 9px;border-radius:20px}
 
     .stats-row{display:flex;gap:10px}
     .stat{text-align:center}
-    .stat-v{font-size:16px;font-weight:600;color:var(--tx)}
+    .stat-v{font-size:17px;font-weight:700;color:var(--tx)}
     .stat-l{font-size:9px;color:var(--fa);text-transform:uppercase;letter-spacing:.06em}
 
-    /* ── SLIDER DE INTERVALO ── */
-    .interval-row{
-      display:flex;align-items:center;gap:10px;
-      background:var(--s);border:1px solid var(--bd);
-      border-radius:var(--rs);padding:10px 13px;margin-bottom:10px;
-    }
-    .int-label{font-size:11px;color:var(--mu);white-space:nowrap}
-    input[type=range]{
-      flex:1;-webkit-appearance:none;appearance:none;
-      height:3px;background:var(--s2);border-radius:2px;outline:none;
-    }
-    input[type=range]::-webkit-slider-thumb{
-      -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
-      background:var(--ac);border:2px solid rgba(124,106,247,.5);
-      cursor:pointer;margin-top:-8.5px;
-    }
-    .int-val{font-size:12px;font-weight:600;color:var(--ac);min-width:38px;text-align:right}
-
     /* ── OPCIONES ── */
-    .opts-row{display:flex;gap:7px}
+    .opts-row{display:flex;gap:7px;margin-bottom:10px}
     .opt-btn{
-      flex:1;padding:8px 6px;border-radius:var(--rs);
+      flex:1;padding:9px 6px;border-radius:var(--rs);
       border:1px solid var(--bd);background:var(--s);
       color:var(--mu);font-size:11px;font-family:inherit;cursor:pointer;
-      display:flex;flex-direction:column;align-items:center;gap:3px;
+      display:flex;flex-direction:column;align-items:center;gap:4px;
       transition:all .15s;-webkit-user-select:none;user-select:none;
     }
-    .opt-btn:active{opacity:.7}
+    .opt-btn:active{opacity:.7;transform:scale(.96)}
     .opt-btn.active{background:var(--acl);border-color:rgba(124,106,247,.4);color:var(--ac)}
-    .opt-btn .ico{font-size:17px}
-    .opt-btn .lbl{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+    .opt-btn .ico{font-size:18px}
+    .opt-btn .lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
 
-    /* ── SERVER CONFIG (colapsable) ── */
+    /* ── CONFIG (más discreta) ── */
     .cfg-toggle{
       width:100%;text-align:center;background:none;border:none;
-      color:var(--fa);font-size:11px;font-family:inherit;cursor:pointer;
-      padding:6px 0 2px;display:flex;align-items:center;justify-content:center;gap:5px;
+      color:var(--fa);font-size:10px;font-family:inherit;cursor:pointer;
+      padding:5px 0 2px;
+      display:flex;align-items:center;justify-content:center;gap:4px;
+      opacity:.6;transition:opacity .2s;
     }
+    .cfg-toggle:hover{opacity:1}
+    .cfg-toggle .cfg-arr{font-size:9px;transition:transform .2s}
+    .cfg-toggle.open .cfg-arr{transform:rotate(90deg)}
     .cfg-panel{
-      display:none;margin-top:10px;
+      display:none;margin-top:8px;
       background:var(--s);border:1px solid var(--bd);border-radius:var(--rs);
-      padding:12px;display:flex;flex-direction:column;gap:8px;
+      padding:10px;flex-direction:column;gap:7px;
     }
     .cfg-panel.open{display:flex}
     .cfg-field{display:flex;flex-direction:column;gap:3px}
     .cfg-field label{font-size:10px;color:var(--fa);text-transform:uppercase;letter-spacing:.06em}
     .cfg-field input,.cfg-field select{
       background:var(--s2);border:1px solid var(--bd);border-radius:8px;
-      padding:8px 10px;font-size:12px;font-family:monospace;color:var(--tx);
+      padding:7px 10px;font-size:12px;font-family:monospace;color:var(--tx);
       outline:none;width:100%;
     }
     .cfg-field input:focus,.cfg-field select:focus{border-color:var(--bdh)}
     .cfg-btns{display:flex;gap:7px}
     .cfg-btn{
-      flex:1;padding:8px;border-radius:var(--rs);
+      flex:1;padding:7px;border-radius:var(--rs);
       border:1px solid rgba(124,106,247,.35);background:var(--acl);
-      color:var(--ac);font-size:12px;font-family:inherit;cursor:pointer;
+      color:var(--ac);font-size:11px;font-family:inherit;cursor:pointer;
       transition:background .15s;
     }
     .cfg-btn:active{background:rgba(124,106,247,.25)}
@@ -207,13 +290,6 @@
       z-index:999;pointer-events:none;
     }
     .toast.show{transform:translateX(-50%) translateY(0)}
-
-    /* Auto-mode highlight */
-    .btn-shoot.auto{
-      background:var(--gn);border-color:rgba(62,207,142,.4);
-      animation:breathe 2s infinite;
-    }
-    @keyframes breathe{0%,100%{box-shadow:0 0 0 4px rgba(62,207,142,.15)}50%{box-shadow:0 0 0 8px rgba(62,207,142,.05)}}
   </style>
 </head>
 <body>
@@ -253,6 +329,18 @@
       <div class="overlay-bot"></div>
     </div>
 
+    <!-- Temporizador de pregunta -->
+    <div class="timer-overlay hidden" id="timerOverlay">
+      <div class="timer-ring-wrap">
+        <svg class="timer-svg" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+          <circle class="timer-track" cx="70" cy="70" r="65"/>
+          <circle class="timer-arc" id="timerArc" cx="70" cy="70" r="65"/>
+        </svg>
+        <span class="timer-num" id="timerNum">30</span>
+        <span class="timer-label">seg restantes</span>
+      </div>
+    </div>
+
     <div class="thumb-wrap" id="thumbWrap" style="display:none">
       <img id="thumbImg" alt="última"/>
     </div>
@@ -263,17 +351,28 @@
   <!-- ── CONTROLS ── -->
   <div class="controls">
 
-    <!-- Intervalo -->
-    <div class="interval-row">
-      <span class="int-label">⏱ Intervalo</span>
+    <!-- Intervalo (tarjeta prominente) -->
+    <div class="interval-card">
+      <div class="interval-header">
+        <div class="interval-title">
+          <span class="ico">⏱</span>
+          <span>Intervalo de captura</span>
+        </div>
+        <div class="interval-badge" id="intervalVal">1.0 s</div>
+      </div>
       <input type="range" id="intervalSlider" min="200" max="5000" step="100" value="1000"
              oninput="onIntervalChange(this.value)"/>
-      <span class="int-val" id="intervalVal">1.0 s</span>
+      <div class="interval-ticks">
+        <span>0.2s</span><span>1s</span><span>2s</span><span>3s</span><span>4s</span><span>5s</span>
+      </div>
     </div>
 
     <!-- Main row -->
     <div class="ctrl-main">
-      <button class="btn-shoot" id="btnShoot" onclick="onShoot()">📷</button>
+      <div class="btn-shoot-wrap">
+        <button class="btn-shoot" id="btnShoot" onclick="onShoot()">📷</button>
+        <span class="btn-label" id="btnLabel">Capturar</span>
+      </div>
       <div class="info-col">
         <div class="info-row">
           <span class="mode-label" id="modeLabel">Manual</span>
@@ -304,9 +403,10 @@
       </button>
     </div>
 
-    <!-- Configuración conexión (sin URL manual, se detecta automáticamente) -->
-    <button class="cfg-toggle" onclick="toggleCfg()">
-      <span id="cfgArr">▸</span> Configuración
+    <!-- Config (muy discreta) -->
+    <button class="cfg-toggle" id="cfgToggleBtn" onclick="toggleCfg()">
+      <span class="cfg-arr">▸</span>
+      <span>Configuración avanzada</span>
     </button>
     <div class="cfg-panel" id="cfgPanel">
       <div class="cfg-field">
@@ -340,21 +440,28 @@ const S = {
   wsReady: false,
   autoMode: false,
   autoTimer: null,
-  interval: 1000,        // ms entre capturas auto
-  quality: 0.82,         // JPEG quality inicial
+  interval: 1000,
+  quality: 0.82,
   qualityLabel: 'Alta',
-  user: 1,               // 1 o 2
-  protocol: 'ws',        // 'ws' o 'http'
+  user: 1,
+  protocol: 'ws',
   srvUrl: '',
   sent: 0, ok: 0, err: 0,
   lastSendTime: 0,
   fpsTimes: [],
   deviceName: navigator.userAgent.includes('iPhone') ? 'iPhone' : 'iOS',
   pendingSend: false,
-  // Compresión adaptativa
   lastKB: 0,
-  targetMaxKB: 150,      // no enviar más de 150 KB por frame
+  targetMaxKB: 150,
 };
+
+// ── TEMPORIZADOR ──
+const TIMER_DURATION = 30;  // segundos
+const TIMER_CIRCUMFERENCE = 2 * Math.PI * 65; // ~408.41
+let timerValue = TIMER_DURATION;
+let timerInterval = null;
+let timerActive = false;
+let lastQuizQnum = null; // para detectar pregunta nueva
 
 const QUALITY_LEVELS = [
   { label:'Ultra', q:0.95, maxW:1920 },
@@ -362,7 +469,56 @@ const QUALITY_LEVELS = [
   { label:'Media', q:0.65, maxW:960  },
   { label:'Rápida',q:0.45, maxW:720  },
 ];
-let qualIdx = 1; // Alta por default
+let qualIdx = 1;
+
+// ═══════════════════════════════════════════════════
+//  TEMPORIZADOR
+// ═══════════════════════════════════════════════════
+function startTimer() {
+  stopTimer();
+  timerValue = TIMER_DURATION;
+  timerActive = true;
+  document.getElementById('timerOverlay').classList.remove('hidden');
+  updateTimerUI();
+  timerInterval = setInterval(() => {
+    timerValue--;
+    updateTimerUI();
+    if (timerValue <= 0) stopTimer();
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = null;
+  timerActive = false;
+  document.getElementById('timerOverlay').classList.add('hidden');
+}
+
+function updateTimerUI() {
+  const arc = document.getElementById('timerArc');
+  const num = document.getElementById('timerNum');
+  const fraction = timerValue / TIMER_DURATION;
+  const offset = TIMER_CIRCUMFERENCE * (1 - fraction);
+  arc.style.strokeDasharray = TIMER_CIRCUMFERENCE;
+  arc.style.strokeDashoffset = offset;
+  num.textContent = timerValue;
+
+  // Colores urgencia
+  arc.classList.remove('urgent', 'critical');
+  num.classList.remove('urgent', 'critical');
+  if (timerValue <= 5) {
+    arc.classList.add('critical');
+    num.classList.add('critical');
+  } else if (timerValue <= 10) {
+    arc.classList.add('urgent');
+    num.classList.add('urgent');
+  }
+}
+
+// Escuchar mensajes SSE o WS que traigan qnum nuevo para resetear el timer
+function onNewQuestion() {
+  startTimer();
+}
 
 // ═══════════════════════════════════════════════════
 //  CAMERA
@@ -399,7 +555,7 @@ function toggleCamera() {
 }
 
 // ═══════════════════════════════════════════════════
-//  CAPTURE (Canvas → JPEG comprimido)
+//  CAPTURE
 // ═══════════════════════════════════════════════════
 function capture() {
   const video = document.getElementById('video');
@@ -414,7 +570,6 @@ function capture() {
   canvas.height = Math.round(vh * scale);
 
   const ctx = canvas.getContext('2d');
-  // Voltear horizontalmente si es cámara frontal
   if(S.facingFront) {
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
@@ -422,7 +577,6 @@ function capture() {
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   if(S.facingFront) ctx.setTransform(1,0,0,1,0,0);
 
-  // Compresión adaptativa: si el último frame fue muy pesado, bajar calidad
   let q = QUALITY_LEVELS[qualIdx].q;
   if(S.lastKB > S.targetMaxKB) {
     q = Math.max(0.3, q * (S.targetMaxKB / S.lastKB));
@@ -441,22 +595,16 @@ function capture() {
 //  WEBSOCKET
 // ═══════════════════════════════════════════════════
 function buildWsUrl(base) {
-  // https://x.com → wss://x.com/ws
-  // http://x.com  → ws://x.com/ws
   const u = base.replace(/\/$/, '');
   if(u.startsWith('wss://') || u.startsWith('ws://')) return u + '/ws';
   return u.replace(/^https?:\/\//, m => m === 'https://' ? 'wss://' : 'ws://') + '/ws';
 }
 
 function connect() {
-  // Siempre usa el mismo origen (funciona en Render automáticamente)
   S.srvUrl   = location.origin;
   S.protocol = document.getElementById('protoSel').value;
-
   if(S.protocol === 'ws') connectWS();
   else { setDot('on', 'HTTP listo'); }
-
-  // Iniciar cámara si no está
   if(!S.cameraReady) initCamera();
 }
 
@@ -477,7 +625,6 @@ function connectWS() {
     S.ws.onclose = () => {
       S.wsReady = false;
       setDot('err', 'WS desconectado');
-      // Reconexión automática en 3s
       setTimeout(() => { if(S.protocol==='ws') connectWS(); }, 3000);
     };
     S.ws.onerror = () => {
@@ -486,11 +633,8 @@ function connectWS() {
     S.ws.onmessage = (e) => {
       try {
         const d = JSON.parse(e.data);
-        // ACK de frame enviado
         if(d.ok) { S.ok++; updStats(); return; }
-        // Comandos enviados desde el monitor
         if(d.type === 'capture') {
-          // Captura remota: tomar y enviar un frame ahora
           sendFrame();
           toast('📸 Captura remota');
         } else if(d.type === 'auto_start') {
@@ -499,6 +643,9 @@ function connectWS() {
         } else if(d.type === 'auto_stop') {
           if(S.autoMode) toggleAuto();
           toast('⏹ Auto detenido por monitor');
+        } else if(d.type === 'new_question') {
+          // Monitor detectó pregunta nueva → iniciar temporizador
+          onNewQuestion();
         }
       } catch(ex){}
     };
@@ -512,15 +659,13 @@ function connectWS() {
 // ═══════════════════════════════════════════════════
 async function sendFrame() {
   if(!S.cameraReady) { toast('Inicia la cámara primero'); return; }
-  if(S.pendingSend) return; // evitar flood
+  if(S.pendingSend) return;
   S.pendingSend = true;
 
   const cap = capture();
   if(!cap) { S.pendingSend = false; return; }
 
-  // Flash visual
   doFlash();
-  // Thumbnail
   document.getElementById('thumbImg').src = cap.dataUrl;
   document.getElementById('thumbWrap').style.display = 'block';
 
@@ -529,7 +674,6 @@ async function sendFrame() {
   document.getElementById('stKb').textContent = cap.kb;
   document.getElementById('stSent').textContent = S.sent;
 
-  // FPS
   const now = Date.now();
   S.fpsTimes.push(now);
   S.fpsTimes = S.fpsTimes.filter(t => now - t < 2000);
@@ -555,52 +699,33 @@ async function sendFrame() {
 }
 
 async function sendWS(cap) {
-  // Protocolo binario: JSON header + \n + base64 data
-  // Alternativa ultrarrápida: enviar raw como texto JSON
   const payload = JSON.stringify({
     user: S.user,
     ts: Date.now(),
     mime: cap.mime,
     sizeKB: cap.kb,
     deviceName: S.deviceName,
-    data: cap.b64,          // base64 string
+    data: cap.b64,
   });
   S.ws.send(payload);
-  // ACK llega por onmessage
 }
 
 async function sendHTTP(cap) {
-  // FormData es más lento → usamos JSON con base64
-  // Pero si la imagen es grande, usamos FormData (mejor para binarios grandes)
   const url = S.srvUrl + '/upload/' + S.user;
-
   if(cap.kb > 80) {
-    // FormData + Blob: más eficiente para imágenes grandes
     const blob = await dataUrlToBlob(cap.dataUrl);
     const fd = new FormData();
     fd.append('image', blob, 'frame.jpg');
     fd.append('ts', Date.now());
     fd.append('deviceName', S.deviceName);
     fd.append('sizeKB', cap.kb);
-
-    const r = await fetch(url, {
-      method: 'POST',
-      body: fd,
-      // No establecer Content-Type, el browser lo hace con boundary
-    });
+    const r = await fetch(url, { method: 'POST', body: fd });
     if(!r.ok) throw new Error('HTTP ' + r.status);
   } else {
-    // JSON para imágenes pequeñas (menos overhead)
     const r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ts: Date.now(),
-        mime: cap.mime,
-        sizeKB: cap.kb,
-        deviceName: S.deviceName,
-        data: cap.b64,
-      }),
+      body: JSON.stringify({ ts: Date.now(), mime: cap.mime, sizeKB: cap.kb, deviceName: S.deviceName, data: cap.b64 }),
     });
     if(!r.ok) throw new Error('HTTP ' + r.status);
   }
@@ -627,7 +752,8 @@ function toggleAuto() {
   document.getElementById('autoIco').textContent = S.autoMode ? '⏹' : '▶️';
   document.getElementById('recBadge').style.display = S.autoMode ? 'flex' : 'none';
   document.getElementById('btnShoot').className = 'btn-shoot' + (S.autoMode ? ' auto' : '');
-  document.getElementById('modeLabel').textContent = S.autoMode ? 'Auto' : 'Manual';
+  document.getElementById('modeLabel').textContent = S.autoMode ? 'Auto activo' : 'Manual';
+  document.getElementById('btnLabel').textContent = S.autoMode ? 'Detener' : 'Capturar';
 
   if(S.autoMode) {
     scheduleAuto();
@@ -659,7 +785,6 @@ function onIntervalChange(val) {
   const s = (S.interval / 1000).toFixed(1);
   document.getElementById('intervalVal').textContent = s + ' s';
   document.getElementById('recLabel').textContent = 'AUTO ' + s + 's';
-  // Reiniciar timer si estamos en auto
   if(S.autoMode) {
     clearTimeout(S.autoTimer);
     scheduleAuto();
@@ -677,15 +802,14 @@ function cycleUser() {
   S.user = S.user === 1 ? 2 : 1;
   document.getElementById('uLabel').textContent = 'U' + S.user;
   document.getElementById('userTag').textContent = 'U' + S.user;
-  // Reconectar WS al usuario correcto
   if(S.protocol === 'ws' && S.srvUrl) connectWS();
 }
 
 function toggleCfg() {
   const panel = document.getElementById('cfgPanel');
-  const arr   = document.getElementById('cfgArr');
+  const btn   = document.getElementById('cfgToggleBtn');
   const open  = panel.classList.toggle('open');
-  arr.textContent = open ? '▾' : '▸';
+  btn.classList.toggle('open', open);
 }
 
 // ═══════════════════════════════════════════════════
@@ -718,24 +842,26 @@ function toast(msg) {
 }
 
 // ═══════════════════════════════════════════════════
-//  INIT — Leer URL del QR si viene como ?srv=...
+//  INIT
 // ═══════════════════════════════════════════════════
 (function init() {
   const params = new URLSearchParams(location.search);
   const user = params.get('u');
-
   if(user && (user==='1'||user==='2')) {
     S.user = parseInt(user);
     document.getElementById('uLabel').textContent = 'U' + S.user;
     document.getElementById('userTag').textContent = 'U' + S.user;
   }
-
-  // Siempre conecta al mismo origen automáticamente
   S.srvUrl = location.origin;
   setTimeout(() => connect(), 500);
+
+  // Inicializar el arco del temporizador
+  const arc = document.getElementById('timerArc');
+  arc.style.strokeDasharray = TIMER_CIRCUMFERENCE;
+  arc.style.strokeDashoffset = 0;
 })();
 
-// Prevent zoom on double tap (iOS)
+// Prevent zoom on double tap
 let lastTap=0;
 document.addEventListener('touchend', e => {
   const now=Date.now();

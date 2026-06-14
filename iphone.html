@@ -484,8 +484,23 @@ function connectWS() {
       setDot('err', 'Error WS');
     };
     S.ws.onmessage = (e) => {
-      // Servidor puede enviar ACK
-      try { const d=JSON.parse(e.data); if(d.ok) S.ok++; updStats(); } catch(ex){}
+      try {
+        const d = JSON.parse(e.data);
+        // ACK de frame enviado
+        if(d.ok) { S.ok++; updStats(); return; }
+        // Comandos enviados desde el monitor
+        if(d.type === 'capture') {
+          // Captura remota: tomar y enviar un frame ahora
+          sendFrame();
+          toast('📸 Captura remota');
+        } else if(d.type === 'auto_start') {
+          if(!S.autoMode) toggleAuto();
+          toast('▶️ Auto iniciado por monitor');
+        } else if(d.type === 'auto_stop') {
+          if(S.autoMode) toggleAuto();
+          toast('⏹ Auto detenido por monitor');
+        }
+      } catch(ex){}
     };
   } catch(e) {
     setDot('err', 'URL inválida');

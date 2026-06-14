@@ -70,6 +70,11 @@ app.get('/monitor', (req, res) => {
   res.sendFile(path.join(__dirname, 'monitor.html'));
 });
 
+// Servir pantalla de respuestas (segundo monitor)
+app.get('/display', (req, res) => {
+  res.sendFile(path.join(__dirname, 'display.html'));
+});
+
 // multer en memoria para FormData (no escribe a disco)
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -251,6 +256,30 @@ app.get('/events/:user', (req, res) => {
     monitors[u].delete(res);
     clearInterval(heartbeat);
   });
+});
+
+// ── COMANDOS AL IPHONE — /cmd/:user ───────────────
+// El monitor puede ordenar al iPhone que capture un frame,
+// cambie modo auto, etc. Se reenvía por WS a todos los iPhones del usuario.
+app.post('/cmd/:user', (req, res) => {
+  const u = parseInt(req.params.user);
+  if (u !== 1 && u !== 2) return res.status(400).json({ error: 'Usuario inválido' });
+
+  const cmd = req.body || {};
+  if (!cmd.type) return res.status(400).json({ error: 'Falta cmd.type' });
+
+  const clients = wsClients[u];
+  if (clients.size === 0) {
+    return res.status(404).json({ error: 'No hay iPhone conectado para este usuario' });
+  }
+
+  const payload = JSON.stringify(cmd);
+  clients.forEach(ws => {
+    try { ws.send(payload); } catch (e) {}
+  });
+
+  console.log(`[CMD] → U${u}: ${cmd.type} (${clients.size} iPhones)`);
+  res.json({ ok: true, sent: clients.size });
 });
 
 // ── STATUS ─────────────────────────────────────────

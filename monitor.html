@@ -321,6 +321,27 @@ footer{text-align:center;padding:1.25rem;border-top:1px solid var(--bd);font-siz
       <button class="cam-btn" onclick="openCam(2)">📱 Cámara U2</button>
       <button class="cam-btn" onclick="copyCam(1)">📋 Copiar U1</button>
     </div>
+    <!-- Captura remota — visible cuando el servidor está conectado -->
+    <div id="remoteCapture" style="display:none;margin-top:.75rem">
+      <p class="bt" style="margin-bottom:.55rem">Captura remota</p>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;gap:6px">
+          <button class="sbtn" style="flex:1;font-size:11px" onclick="remoteCapture(1)">📸 Capturar U1</button>
+          <button class="sbtn" style="flex:1;font-size:11px" onclick="remoteCapture(2)">📸 Capturar U2</button>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="sbtn" id="autoBtn1" style="flex:1;font-size:11px;background:rgba(62,207,142,.12);border-color:rgba(62,207,142,.3);color:#3ecf8e" onclick="remoteAuto(1)">▶ Auto U1</button>
+          <button class="sbtn" id="autoBtn2" style="flex:1;font-size:11px;background:rgba(62,207,142,.12);border-color:rgba(62,207,142,.3);color:#3ecf8e" onclick="remoteAuto(2)">▶ Auto U2</button>
+        </div>
+        <div id="remoteCmdStatus" style="font-size:10px;color:var(--fa);min-height:14px;text-align:center"></div>
+      </div>
+    </div>
+    <!-- Pantalla de respuestas — abre display.html en segunda ventana -->
+    <div style="margin-top:.75rem;border-top:1px solid var(--bd);padding-top:.75rem">
+      <p class="bt" style="margin-bottom:.55rem">Segundo monitor</p>
+      <button class="sbtn" style="width:100%;font-size:11px" onclick="openDisplay(1)">🖥 Abrir pantalla U1</button>
+      <button class="sbtn" style="width:100%;font-size:11px;margin-top:6px" onclick="openDisplay(2)">🖥 Abrir pantalla U2</button>
+    </div>
   </div>
 
   <!-- Tabs usuarios -->
@@ -622,6 +643,7 @@ function connectSrv() {
       if(d.ok){
         setSrvDot('on','Servidor conectado');
         document.getElementById('camLinks').style.display='flex';
+        document.getElementById('remoteCapture').style.display='block';
         startSSE(1); startSSE(2);
       } else {
         setSrvDot('err','Error al conectar');
@@ -653,6 +675,61 @@ function copyCam(u) {
     const btn=event.target; const o=btn.textContent;
     btn.textContent='✅ Copiado'; setTimeout(()=>btn.textContent=o,2000);
   });
+}
+
+// ── CAPTURA REMOTA — envía comando al iPhone vía servidor ──
+async function remoteCapture(u) {
+  const status = document.getElementById('remoteCmdStatus');
+  status.textContent = `Enviando captura a U${u}…`;
+  try {
+    const r = await fetch(srvUrl+'/cmd/'+u, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'capture' })
+    });
+    const d = await r.json();
+    if(d.ok) status.textContent = `✅ Captura enviada a U${u} (${d.sent} iPhone${d.sent>1?'s':''})`;
+    else status.textContent = `⚠️ ${d.error}`;
+  } catch(e) {
+    status.textContent = `❌ Error: ${e.message}`;
+  }
+  setTimeout(()=>{ status.textContent=''; }, 3000);
+}
+
+// Estado local de auto por usuario (para el toggle del botón)
+const autoState = { 1: false, 2: false };
+
+async function remoteAuto(u) {
+  autoState[u] = !autoState[u];
+  const cmd = autoState[u] ? 'auto_start' : 'auto_stop';
+  const btn = document.getElementById('autoBtn'+u);
+  const status = document.getElementById('remoteCmdStatus');
+
+  btn.textContent = autoState[u] ? `⏹ Stop U${u}` : `▶ Auto U${u}`;
+  btn.style.background = autoState[u] ? 'rgba(246,102,102,.12)' : 'rgba(62,207,142,.12)';
+  btn.style.borderColor = autoState[u] ? 'rgba(246,102,102,.3)' : 'rgba(62,207,142,.3)';
+  btn.style.color = autoState[u] ? '#f66' : '#3ecf8e';
+
+  status.textContent = `Enviando ${autoState[u]?'inicio':'pausa'} auto a U${u}…`;
+  try {
+    const r = await fetch(srvUrl+'/cmd/'+u, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type: cmd })
+    });
+    const d = await r.json();
+    if(d.ok) status.textContent = `✅ ${autoState[u]?'Auto iniciado':'Auto detenido'} en U${u}`;
+    else { status.textContent = `⚠️ ${d.error}`; autoState[u]=!autoState[u]; }
+  } catch(e) {
+    status.textContent = `❌ Error: ${e.message}`; autoState[u]=!autoState[u];
+  }
+  setTimeout(()=>{ status.textContent=''; }, 3000);
+}
+
+// ── SEGUNDO MONITOR — abre display.html ──
+function openDisplay(u) {
+  window.open(srvUrl+'/display?u='+u, '_blank',
+    'width=1280,height=800,menubar=no,toolbar=no,location=no,status=no');
 }
 
 // ══════════════════════════════════════════════════════

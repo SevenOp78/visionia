@@ -958,14 +958,20 @@ function parseQuizJSON(s) {
 function mergeQuiz(u, data) {
   const st = U[u].quiz;
 
-  // ── Detectar si es pregunta NUEVA ──────────────────────────────────────
-  // Solo es nueva si viene un qnum DIFERENTE al actual.
-  // Si qnum es null en el frame, es un fragmento de la misma pregunta.
-  const isNew = data.qnum != null && data.qnum !== st.qnum;
+  const incomingQ = (data.question||'').trim();
+  const incomingQnum = data.qnum != null ? data.qnum : null;
+  const hasNewQnum = incomingQnum != null && incomingQnum !== st.qnum;
+  const hasNewText = incomingQ.length > 0;
+
+  // ── Detectar pregunta NUEVA ─────────────────────────────────────────────
+  // Condicion: qnum diferente AL ACTUAL y ademas trae texto de pregunta.
+  // Si llega qnum nuevo pero sin texto (question:'') es un fragmento de
+  // la misma pregunta capturado en partes — se acumula sin resetear.
+  const isNew = hasNewQnum && hasNewText;
 
   if(isNew){
-    st.qnum    = data.qnum;
-    st.question = (data.question||'').trim();
+    st.qnum    = incomingQnum;
+    st.question = incomingQ;
     st.options  = {A:'',B:'',C:'',D:''};
     st.answer   = null;
     st.reason   = '';
@@ -978,11 +984,16 @@ function mergeQuiz(u, data) {
   }
 
   // ── Mismo contexto: acumular sin resetear ──────────────────────────────
-  // Acumular texto de pregunta si hay nuevo texto
-  const incoming = (data.question||'').trim();
-  const current  = st.question.trim();
-  if(incoming && !current.includes(incoming.slice(0,20))){
-    st.question = current ? (current+' '+incoming).trim() : incoming;
+  // Si viene un qnum nuevo pero sin texto de pregunta, actualizar solo el qnum
+  // para que el proximo frame con texto sea reconocido correctamente
+  if(hasNewQnum && !hasNewText && st.qnum == null){
+    st.qnum = incomingQnum;
+  }
+
+  // Acumular texto de pregunta si hay texto nuevo no repetido
+  const current = st.question.trim();
+  if(incomingQ && !current.includes(incomingQ.slice(0,20))){
+    st.question = current ? (current+' '+incomingQ).trim() : incomingQ;
   }
 
   // Acumular opciones nuevas (nunca pisar una ya guardada)
@@ -996,10 +1007,9 @@ function mergeQuiz(u, data) {
 
   renderQuiz(u);
 
-  // Si llegaron opciones nuevas y el solver aun no ha dado letra, relanzar solver
-  const allOptions = ['A','B','C','D'].every(k => st.options[k]);
+  // Si llegaron opciones nuevas y el solver aun no tiene letra, relanzar
   const needsSolve = newOptions && !st.answer && !st.solving;
-  return needsSolve; // true = lanzar solver con el frame actual (tiene opciones)
+  return needsSolve;
 }
 
 function renderQuiz(u) {

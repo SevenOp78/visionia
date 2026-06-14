@@ -865,39 +865,49 @@ function buildQuizPrompt(u) {
   if(st.qnum!=null){
     ctx = `Contexto acumulado PREGUNTA ${st.qnum}:\n`+
       `Pregunta: "${st.question||'(sin texto)'}"\n`+
-      ['A','B','C','D'].map(k=>`${k}: "${st.options[k]||'(sin texto)'}"`).join('\n')+
-      (st.answer?`\nRespuesta hasta ahora: ${st.answer}`:'')+'\n\n';
+      ['A','B','C','D'].map(k=>`${k}: "${st.options[k]||'(sin texto)'}"`).join('\n')+'\n\n';
   }
-  return `Estás resolviendo un cuestionario de opción múltiple (A,B,C,D) a partir de capturas que pueden llegar fragmentadas.\n\n${ctx}`+
-    `Analiza la imagen adjunta y responde ÚNICAMENTE con JSON válido (sin markdown, sin texto extra):\n`+
-    `{"qnum":<número entero si es pregunta NUEVA distinta al contexto, si no null>,`+
-    `"question":"<texto visible de la pregunta, vacío si no hay>",`+
-    `"options":{"A":"","B":"","C":"","D":""},`+
-    `"answer":"<A,B,C o D; null si no hay info suficiente>",`+
-    `"reason":"<justificación breve máx 20 palabras>"}`;
+  return `Estas extrayendo datos de un cuestionario de opcion multiple a partir de capturas fragmentadas.\n\n${ctx}`+
+    `Analiza la imagen y devuelve UNICAMENTE JSON valido (sin markdown, sin texto extra):\n`+
+    `{"qnum":<numero entero SOLO si ves un numero de pregunta NUEVO diferente al contexto, si no null>,`+
+    `"question":"<texto de la pregunta visible, vacio si no hay>",`+
+    `"options":{"A":"<texto inciso A si es visible, vacio si no>","B":"<texto inciso B>","C":"<texto inciso C>","D":"<texto inciso D>"}}`+
+    `\nIMPORTANTE: NO incluyas campo "answer". Solo extrae texto visible. Si no ves numero de pregunta nuevo, qnum debe ser null.`;
 }
 
-function buildSolverPrompt() {
-  return `Eres un experto resolviendo exámenes de cualquier materia (incluye matemáticas, física, química, etc.).\n`+
-    `Observa la imagen y resuelve la pregunta visible, sin importar si tiene o no opciones de respuesta (A,B,C,D).\n`+
-    `Tu objetivo es dar la respuesta CORRECTA y FIABLE de forma directa.\n\n`+
-    `Reglas de formato para la respuesta:\n`+
-    `- Si la respuesta es una opción (A,B,C,D), indícala junto con el valor/resultado correspondiente.\n`+
-    `- Si involucra cálculos matemáticos o químicos (raíces, fracciones, exponentes, ecuaciones, fórmulas, etc.), `+
-    `escribe la notación matemática usando LaTeX envuelto en signos de dólar, por ejemplo: $\\sqrt{16}=4$, $\\frac{3}{4}$, $x^{2}$, $H_{2}O$.\n`+
-    `- La respuesta principal debe ser breve (máx 15 palabras o una expresión matemática), va en el campo "respuesta".\n`+
-    `- En "detalle" da una justificación breve (máx 20 palabras), sin repetir la respuesta completa.\n\n`+
-    `Responde ÚNICAMENTE con JSON válido (sin markdown, sin texto extra):\n`+
-    `{"respuesta":"<respuesta final, puede incluir notación LaTeX con $...$>","detalle":"<justificación breve>"}`;
+function buildSolverPrompt(u) {
+  const st = U[u].quiz;
+  const hasOptions = ['A','B','C','D'].some(k => st.options[k]);
+  let ctx = '';
+  if(st.question) ctx += `Pregunta acumulada: "${st.question}"\n`;
+  if(hasOptions){
+    ctx += 'Opciones acumuladas:\n';
+    ['A','B','C','D'].forEach(k=>{ if(st.options[k]) ctx += `${k}: "${st.options[k]}"\n`; });
+  }
+  if(st.solved) ctx += `\nRespuesta previa del solver: ${st.solved.replace(/<[^>]+>/g,'')}\n`;
+  return `Eres un experto resolviendo examenes de cualquier materia (matematicas, fisica, quimica, geografia, historia, biologia, etc.).\n`+
+    `Observa la imagen y usa el contexto acumulado para dar la respuesta CORRECTA y FIABLE.\n\n`+
+    `${ctx}\n`+
+    `REGLAS CRITICAS:\n`+
+    `1. Compara el SIGNIFICADO COMPLETO de cada opcion, no palabras sueltas.\n`+
+    `   Ejemplo: si la respuesta es "Guatemala y Belice", la opcion "Estados Unidos y Guatemala" es INCORRECTA aunque diga "Guatemala".\n`+
+    `2. Acepta equivalencias semanticas y matematicas.\n`+
+    `   Ejemplo: si la respuesta es x=10, la opcion "(35+15)/5" es CORRECTA porque da 10.\n`+
+    `   Ejemplo: si la respuesta es "Roma", la opcion "Ciudad de Roma" puede ser CORRECTA si es equivalente.\n`+
+    `3. En matematicas verifica el calculo completo antes de elegir la letra.\n\n`+
+    `Responde UNICAMENTE con JSON valido (sin markdown, sin texto extra):\n`+
+    `{"letra":"<A, B, C o D — la opcion correcta, o null si aun no hay opciones visibles>",`+
+    `"respuesta":"<respuesta directa, puede incluir LaTeX con $...$>",`+
+    `"detalle":"<justificacion breve max 20 palabras>"}`;
 }
 
 async function solveIndependent(u, frame) {
   const st = U[u].quiz;
+  // Guardar el qnum en el momento de lanzar el solver
+  // para descartar la respuesta si ya cambio la pregunta cuando llegue
+  const solverQnum = st.qnum;
   st.solving = true;
   renderQuiz(u);
-
-  const b64  = frame.url.split(',')[1];
-  const mime = frame.mime || 'image/jpeg';
 
   try {
     const r = await fetch(srvUrl + '/api/analyze',{
@@ -905,18 +915,26 @@ async function solveIndependent(u, frame) {
       headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({
         model: SOLVER_MODEL,
-        prompt: buildSolverPrompt(),
+        prompt: buildSolverPrompt(u),
         imageUrl: frame.url,
-        maxTokens: 600,
+        maxTokens: 800,
         detail: 'high'
       })
     });
     const d = await r.json();
     if(d.error) throw new Error(d.error);
     const reply = d.reply || '';
+
+    // Si la pregunta cambio mientras el solver pensaba, descartar
+    if(st.qnum !== solverQnum) return;
+
     const data = parseQuizJSON(reply);
     if(data && data.respuesta){
       st.solved = esc(data.respuesta) + (data.detalle ? `<span class="qs-detail">${esc(data.detalle)}</span>` : '');
+      if(data.letra && 'ABCD'.includes(data.letra)){
+        st.answer = data.letra;
+        st.reason = data.detalle || st.reason;
+      }
     } else {
       st.solved = esc(reply || 'Sin respuesta.');
     }
@@ -939,30 +957,49 @@ function parseQuizJSON(s) {
 
 function mergeQuiz(u, data) {
   const st = U[u].quiz;
-  const incoming = (data.question||'').trim();
-  const current  = (st.question||'').trim();
-  const isNew = incoming && current && !incoming.includes(current) && !current.includes(incoming);
+
+  // ── Detectar si es pregunta NUEVA ──────────────────────────────────────
+  // Solo es nueva si viene un qnum DIFERENTE al actual.
+  // Si qnum es null en el frame, es un fragmento de la misma pregunta.
+  const isNew = data.qnum != null && data.qnum !== st.qnum;
 
   if(isNew){
-    st.qnum = (data.qnum!=null) ? data.qnum : (st.qnum!=null ? st.qnum+1 : 1);
-    st.question = incoming;
-    st.options={A:'',B:'',C:'',D:''}; st.answer=null; st.reason='';
-    st.solved=''; st.solving=false;
-  } else {
-    if(!current && incoming){
-      st.question = incoming;
-      if(data.qnum!=null) st.qnum = data.qnum;
-    } else if(incoming && !current.includes(incoming)){
-      st.question = (current?current+' ':'')+incoming;
-    }
-    if(st.qnum==null && data.qnum!=null) st.qnum = data.qnum;
+    st.qnum    = data.qnum;
+    st.question = (data.question||'').trim();
+    st.options  = {A:'',B:'',C:'',D:''};
+    st.answer   = null;
+    st.reason   = '';
+    st.solved   = '';
+    st.solving  = false;
+    // Acumular opciones que vengan en este mismo frame
+    ['A','B','C','D'].forEach(k=>{ if(data.options?.[k]) st.options[k]=data.options[k]; });
+    renderQuiz(u);
+    return true; // pregunta nueva → lanzar solver
   }
 
-  ['A','B','C','D'].forEach(k=>{ if(data.options?.[k]) st.options[k]=data.options[k]; });
-  if(data.answer && 'ABCD'.includes(data.answer)){ st.answer=data.answer; st.reason=data.reason||''; }
-  else if(data.reason){ st.reason=data.reason; }
+  // ── Mismo contexto: acumular sin resetear ──────────────────────────────
+  // Acumular texto de pregunta si hay nuevo texto
+  const incoming = (data.question||'').trim();
+  const current  = st.question.trim();
+  if(incoming && !current.includes(incoming.slice(0,20))){
+    st.question = current ? (current+' '+incoming).trim() : incoming;
+  }
+
+  // Acumular opciones nuevas (nunca pisar una ya guardada)
+  let newOptions = false;
+  ['A','B','C','D'].forEach(k=>{
+    if(data.options?.[k] && !st.options[k]){
+      st.options[k] = data.options[k];
+      newOptions = true;
+    }
+  });
+
   renderQuiz(u);
-  return isNew || (!current && incoming);
+
+  // Si llegaron opciones nuevas y el solver aun no ha dado letra, relanzar solver
+  const allOptions = ['A','B','C','D'].every(k => st.options[k]);
+  const needsSolve = newOptions && !st.answer && !st.solving;
+  return needsSolve; // true = lanzar solver con el frame actual (tiene opciones)
 }
 
 function renderQuiz(u) {
